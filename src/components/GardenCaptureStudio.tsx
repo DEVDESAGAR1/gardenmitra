@@ -55,7 +55,6 @@ export const GardenCaptureStudio: React.FC<GardenCaptureStudioProps> = ({ onClos
   // Video Recording & Extraction State
   const videoInputRef = useRef<HTMLInputElement>(null);
   const [isRecording, setIsRecording] = useState(false);
-  const [recordedChunks, setRecordedChunks] = useState<Blob[]>([]);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [isExtractingFrames, setIsExtractingFrames] = useState(false);
@@ -214,7 +213,6 @@ export const GardenCaptureStudio: React.FC<GardenCaptureStudioProps> = ({ onClos
   // Video Recording via In-Browser MediaRecorder
   const startRecording = async () => {
     setCameraError(null);
-    setRecordedChunks([]);
 
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       setCameraError('MediaDevices is not supported in your browser.');

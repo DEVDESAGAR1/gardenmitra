@@ -1186,6 +1186,10 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     return frames;
   }, [saveMediaAsset]);
 
+  const saveAIObservation = useCallback((obs: StoredAIObservation) => {
+    setStoredAIObservations((prev) => [obs, ...prev]);
+  }, []);
+
   const analyzeSpaceMedia = useCallback(async (
     spaceId: string,
     mediaAssetIds?: string[]
@@ -1271,10 +1275,6 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   useEffect(() => {
     checkModelAvailability();
   }, [checkModelAvailability]);
-
-  const saveAIObservation = useCallback((obs: StoredAIObservation) => {
-    setStoredAIObservations((prev) => [obs, ...prev]);
-  }, []);
 
   // Plant actions on active space
   const addPlantToGarden = useCallback((plant: Plant) => {
