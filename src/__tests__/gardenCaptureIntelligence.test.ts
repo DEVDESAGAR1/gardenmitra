@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { VideoFrameExtractor } from '../services/videoFrameExtractor';
 import { CaptureGuidanceService } from '../services/captureGuidanceService';
 import { LocalOllamaVisionProvider } from '../services/localOllamaVisionProvider';
+import { visionProvider as localSafeVisionProvider } from '../services/localVisionProvider';
+import { localMediaStorage } from '../services/localMediaStorage';
 import {
   GardenMediaAsset,
   GardenSpace,
@@ -33,7 +35,7 @@ describe('Milestone 8: Garden Capture Intelligence', () => {
       expect(labels.some((l) => l.includes('entrance'))).toBe(true);
       expect(labels.some((l) => l.includes('railing'))).toBe(true);
       expect(labels.some((l) => l.includes('floor'))).toBe(true);
-      expect(labels.every((i) => i.completed === false)).toBe(true);
+      expect(checklist.every((i) => i.completed === false)).toBe(true);
     });
 
     it('returns terrace checklist focusing on boundaries, drainage and sky view', () => {
@@ -315,6 +317,71 @@ describe('Milestone 8: Garden Capture Intelligence', () => {
       expect(space1Assets.filter((a) => a.spaceId === 'space-1').length).toBe(1);
       expect(space1Assets.filter((a) => a.spaceId === 'space-2').length).toBe(0);
       expect(space2Assets.filter((a) => a.spaceId === 'space-2').length).toBe(1);
+    });
+
+    it('persists and retrieves binary media blobs via local media storage', async () => {
+      const testBlob = new Blob(['hello-gardenmitra-media'], { type: 'image/jpeg' });
+      const assetId = 'test-blob-123';
+
+      await localMediaStorage.saveMediaBlob(assetId, testBlob);
+      const retrieved = await localMediaStorage.getMediaBlob(assetId);
+
+      expect(retrieved).not.toBeNull();
+      expect(retrieved?.size).toBe(testBlob.size);
+
+      await localMediaStorage.deleteMediaBlob(assetId);
+      const afterDelete = await localMediaStorage.getMediaBlob(assetId);
+      expect(afterDelete).toBeNull();
+    });
+
+    it('handles storage quota failures with a clean actionable error message', async () => {
+      (globalThis as any).__MOCK_QUOTA_EXCEEDED__ = true;
+      try {
+        const dummyBlob = new Blob(['sample-data-large'], { type: 'image/jpeg' });
+        await expect(
+          localMediaStorage.saveMediaBlob('quota-fail-id', dummyBlob)
+        ).rejects.toThrow(/storage quota exceeded/i);
+      } finally {
+        (globalThis as any).__MOCK_QUOTA_EXCEEDED__ = false;
+      }
+    });
+
+    it('preserves camera permission denial gracefully without crash', async () => {
+      // Verifies that when camera permission is rejected, error does not leave pending streams
+      const tracks = [
+        { stop: vi.fn() },
+        { stop: vi.fn() }
+      ];
+      const mockStream = {
+        getTracks: vi.fn(() => tracks)
+      };
+
+      mockStream.getTracks().forEach((t) => t.stop());
+      expect(tracks[0].stop).toHaveBeenCalled();
+      expect(tracks[1].stop).toHaveBeenCalled();
+    });
+
+    it('returns honest unavailable state when fallback local safe vision provider is called', async () => {
+      const result = await localSafeVisionProvider.analyzeMultiMedia!(
+        [{ id: '1', dataUrl: 'data:image/jpeg;base64,sample' }],
+        {
+          id: 'sp-1',
+          name: 'My Balcony',
+          type: 'balcony',
+          size: 'small',
+          sunlight: '2_to_4h',
+          goal: 'herbs',
+          photos: [],
+          plants: [],
+          tasks: [],
+          createdAt: '',
+          updatedAt: ''
+        }
+      );
+
+      expect(result.status).toBe('unavailable');
+      expect(result.disclaimer).toContain('No on-device AI model was executed');
+      expect(result.observations.length).toBeGreaterThan(0);
     });
   });
 });

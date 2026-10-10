@@ -19,7 +19,8 @@ import {
   WeatherSnapshot,
   WeatherForecast,
   EnvironmentalContext,
-  MultiMediaAnalysisResult
+  MultiMediaAnalysisResult,
+  PlantSearchFilters
 } from '../types';
 
 /**
@@ -109,6 +110,7 @@ export interface PlantKnowledgeProvider {
 
   getAllPlants(): Promise<Plant[]>;
   getPlantById(id: string): Promise<Plant | null>;
+  searchPlants(query: string, filters?: PlantSearchFilters): Promise<Plant[]>;
   getRecommendations(
     profile: GardenProfile,
     env?: EnvironmentalContext | null,

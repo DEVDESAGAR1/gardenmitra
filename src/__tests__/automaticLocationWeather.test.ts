@@ -420,5 +420,135 @@ describe('Milestone 7: Automatic Location & Real Environmental Intelligence', ()
       expect(current.isMock).toBe(true);
       expect(mockWeatherProvider.isLocalMock).toBe(true);
     });
+
+    it('expires cache and re-fetches from network when TTL (30 mins) has elapsed', async () => {
+      const loc: LocationInfo = { city: 'Bengaluru', state: '', country: 'India', latitude: 12.97, longitude: 77.59 };
+
+      const oldCachePayload = {
+        cachedAt: Date.now() - (35 * 60 * 1000), // 35 minutes ago (expired)
+        forecast: {
+          current: { temperatureC: 22.0, conditionText: 'Old Cached' },
+          daily: [],
+          location: loc,
+          source: 'open_meteo_live',
+          confidence: 'measured_live'
+        }
+      };
+
+      localStorage.setItem('gardenmitra_weather_cache_12.97_77.59', JSON.stringify(oldCachePayload));
+
+      const freshNetworkResponse = {
+        current: { temperature_2m: 29.5, weather_code: 0 },
+        daily: { time: ['2026-10-10'], temperature_2m_max: [30], temperature_2m_min: [21] }
+      };
+
+      const fetchMock = vi.fn().mockResolvedValue({
+        ok: true,
+        json: async () => freshNetworkResponse
+      });
+      vi.stubGlobal('fetch', fetchMock);
+
+      const forecast = await weatherProvider.getForecast(loc);
+      // Because cache was older than 30 mins, network fetch was triggered
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      expect(forecast.current.temperatureC).toBe(29.5);
+    });
+
+    it('ensures weather updates do not corrupt or clear existing plant care history', () => {
+      const mockPlant: import('../types').GardenPlant = {
+        plantId: 'mint-1',
+        plant: {
+          id: 'mint-1',
+          name: 'Pudina (Mint)',
+          category: 'herbs',
+          difficulty: 'Easy',
+          sunlightText: 'Partial sun',
+          sunlightRequirement: 'partial',
+          wateringText: 'Keep moist',
+          spaceText: 'Pot',
+          containerFriendly: true,
+          beginnerFriendly: true,
+          approximateGrowthTime: '30 days',
+          shortDescription: 'Fresh herb',
+          basicRequirements: [],
+          recommendedFor: [],
+          containerGuidance: '',
+          growingTimeline: '',
+          basicCare: [],
+          thingsToWatchFor: []
+        },
+        addedAt: '2026-10-01T00:00:00Z',
+        plantedAt: '2026-10-01T00:00:00Z',
+        status: 'growing',
+        wateringCount: 5,
+        careHistory: [
+          {
+            id: 'care-1',
+            plantId: 'mint-1',
+            spaceId: 'sp-1',
+            type: 'watered',
+            timestamp: '2026-10-08T08:00:00Z'
+          },
+          {
+            id: 'care-2',
+            plantId: 'mint-1',
+            spaceId: 'sp-1',
+            type: 'soil_checked',
+            soilCondition: 'moist',
+            timestamp: '2026-10-09T08:00:00Z'
+          }
+        ]
+      };
+
+      const spaceWithHistory: GardenSpace = {
+        id: 'sp-1',
+        name: 'Herb Balcony',
+        type: 'balcony',
+        size: 'small',
+        sunlight: '4_to_6h',
+        goal: 'herbs',
+        photos: [],
+        plants: [mockPlant],
+        tasks: [],
+        createdAt: '2026-10-01T00:00:00Z',
+        updatedAt: '2026-10-01T00:00:00Z'
+      };
+
+      const envContext: EnvironmentalContext = {
+        location: { city: 'Bengaluru', state: '', country: 'India' },
+        snapshot: {
+          temperatureC: 30,
+          minTemperatureC: 22,
+          maxTemperatureC: 32,
+          humidityPercent: 60,
+          precipitationProbabilityPercent: 10,
+          rainfallMm: 0,
+          windSpeedKmh: 10,
+          cloudCoverPercent: 20,
+          conditionText: 'Clear',
+          timestamp: new Date().toISOString(),
+          isMock: false
+        },
+        source: 'open_meteo_live',
+        confidence: 'measured_live',
+        timestamp: new Date().toISOString()
+      };
+
+      const additiveTasks = ruleEngine.generateAdditiveWeatherTasks([spaceWithHistory], envContext);
+      expect(additiveTasks).toBeDefined();
+
+      // Verify care history array and watering count on the plant remain completely untouched
+      const targetPlant = spaceWithHistory.plants[0]!;
+      expect(targetPlant.careHistory!.length).toBe(2);
+      expect(targetPlant.wateringCount).toBe(5);
+      expect(targetPlant.careHistory![0]!.type).toBe('watered');
+    });
+
+    it('loads and resolves gracefully when garden location is unconfigured or empty', () => {
+      const emptyLocation: LocationInfo = { city: '', state: '', country: '' };
+      const coords = weatherProvider.resolveCoordinates(emptyLocation);
+      expect(coords.lat).toBeDefined();
+      expect(coords.lon).toBeDefined();
+    });
   });
 });

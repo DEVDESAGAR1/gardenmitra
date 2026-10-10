@@ -29,6 +29,7 @@ import {
   Film
 } from 'lucide-react';
 import { GardenCaptureStudio } from './GardenCaptureStudio';
+import { AdaptiveScanGuidanceCard } from './AdaptiveScanGuidanceCard';
 
 export const MyGardenDashboard: React.FC = () => {
   const {
@@ -247,7 +248,14 @@ export const MyGardenDashboard: React.FC = () => {
       {/* 4. Active Space Toolbar */}
       <SpaceSelector />
 
-      {/* 5. Selected Space Detail & Photo Grid */}
+      {/* 5. Milestone 9 Adaptive Space Scanning & Usable Space Card */}
+      {selectedSpace && (
+        <div style={{ marginBottom: '1.5rem' }}>
+          <AdaptiveScanGuidanceCard />
+        </div>
+      )}
+
+      {/* 6. Selected Space Detail & Photo Grid */}
       {selectedSpace && (
         <div
           style={{

@@ -10,7 +10,9 @@ import {
   Stethoscope,
   Sun,
   LayoutDashboard,
-  Layers
+  Layers,
+  Box,
+  BookOpen
 } from 'lucide-react';
 
 export const Header: React.FC = () => {
@@ -24,6 +26,8 @@ export const Header: React.FC = () => {
       icon: <LayoutDashboard size={18} />,
       badgeCount: selectedGardenPlants.length > 0 ? selectedGardenPlants.length : undefined
     },
+    { id: 'journal', label: 'Journal', icon: <BookOpen size={18} /> },
+    { id: 'twin', label: 'Digital Twin', icon: <Box size={18} /> },
     { id: 'layout', label: 'Layout', icon: <Layers size={18} /> },
     { id: 'plants', label: 'Plants', icon: <Compass size={18} /> },
     { id: 'today', label: "Today's Garden", icon: <CheckCircle2 size={18} /> },

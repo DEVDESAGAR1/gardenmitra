@@ -14,6 +14,8 @@ import { PlantDetailModal } from './components/PlantDetailModal';
 import { TouchGrassModal } from './components/TouchGrassModal';
 import { SpaceModal } from './components/SpaceModal';
 import { SpaceLayoutPlanner } from './components/SpaceLayoutPlanner';
+import { DigitalTwinStudio } from './components/DigitalTwinStudio';
+import { GardenJournalView } from './components/GardenJournalView';
 
 const AppContent: React.FC = () => {
   const { activeTab, selectedPlantForDetail, setSelectedPlantForDetail } = useGarden();
@@ -38,6 +40,10 @@ const AppContent: React.FC = () => {
         return <TodaysGardenView />;
       case 'layout':
         return <SpaceLayoutPlanner />;
+      case 'twin':
+        return <DigitalTwinStudio />;
+      case 'journal':
+        return <GardenJournalView />;
       default:
         return <WelcomeScreen />;
     }

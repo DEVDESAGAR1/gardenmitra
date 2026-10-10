@@ -37,7 +37,17 @@ import {
   GardenMediaAsset,
   GardenCaptureSession,
   ExtractedVideoFrame,
-  MultiMediaAnalysisResult
+  MultiMediaAnalysisResult,
+  SpaceCaptureCoverage,
+  SpaceMeasurement,
+  UsableSpaceCalculation,
+  UserConfirmableObservation,
+  DigitalTwinProposalMode,
+  DigitalTwinProposal,
+  GardenDigitalTwin,
+  PlantLifecycleStage,
+  PlantJournalEntry,
+  GardenInsight
 } from '../types';
 import { plantKnowledgeProvider } from '../services/localPlantKnowledgeProvider';
 import { shoppingProvider } from '../services/localShoppingProvider';
@@ -54,6 +64,12 @@ import { sunlightEstimationEngine } from '../services/sunlightEstimationEngine';
 import { layoutValidationEngine, layoutRecommendationEngine } from '../services/layoutOptimizationEngine';
 import { localMediaStorage } from '../services/localMediaStorage';
 import { videoFrameExtractor, VideoExtractionOptions } from '../services/videoFrameExtractor';
+import { captureCoverageEngine } from '../services/captureCoverageEngine';
+import { spaceMeasurementEngine } from '../services/spaceMeasurementEngine';
+import { usableSpaceEngine } from '../services/usableSpaceEngine';
+import { digitalTwinRecommendationEngine } from '../services/digitalTwinRecommendationEngine';
+import { aiVisualizerService, VisualConceptOutput } from '../services/aiVisualizerService';
+import { gardenMemoryEngine } from '../services/gardenMemoryEngine';
 
 export type NavigationTab = 
   | 'home' 
@@ -64,7 +80,9 @@ export type NavigationTab =
   | 'chat' 
   | 'doctor' 
   | 'today'
-  | 'layout';
+  | 'layout'
+  | 'twin'
+  | 'journal';
 
 interface GardenContextType {
   // Milestone 1 Multi-Space Models
@@ -164,6 +182,35 @@ interface GardenContextType {
   layoutIssues: LayoutIssue[];
   layoutRecommendations: LayoutRecommendation[];
 
+  // Milestone 9: Adaptive Space Scanning & Measurements
+  spaceCoverage: SpaceCaptureCoverage | null;
+  spaceMeasurements: SpaceMeasurement[];
+  usableSpace: UsableSpaceCalculation | null;
+  userObservations: UserConfirmableObservation[];
+  evaluateSpaceCoverage: (spaceId: string) => SpaceCaptureCoverage;
+  addSpaceMeasurement: (
+    spaceId: string,
+    measurement: Omit<SpaceMeasurement, 'id' | 'spaceId' | 'createdAt'>
+  ) => SpaceMeasurement;
+  removeSpaceMeasurement: (spaceId: string, measurementId: string) => void;
+  confirmUserObservation: (
+    spaceId: string,
+    observation: Omit<UserConfirmableObservation, 'id' | 'spaceId' | 'confirmedAt' | 'source'>
+  ) => UserConfirmableObservation;
+
+  // Milestone 10: Garden Digital Twin & AI Visualizer
+  digitalTwin: GardenDigitalTwin | null;
+  generateDigitalTwinProposal: (
+    spaceId: string,
+    mode: DigitalTwinProposalMode
+  ) => DigitalTwinProposal;
+  acceptDigitalTwinProposal: (spaceId: string, proposalId: string) => void;
+  discardDigitalTwinProposal: (spaceId: string, proposalId: string) => void;
+  getVisualConceptOutput: (
+    spaceId: string,
+    proposal: DigitalTwinProposal
+  ) => VisualConceptOutput;
+
   // Global UI State
   chatMessages: ChatMessage[];
   activeTab: NavigationTab;
@@ -213,6 +260,38 @@ interface GardenContextType {
   setShowTouchGrassModal: (show: boolean) => void;
   setSelectedPlantForDetail: (plant: Plant | null) => void;
   resetAll: () => void;
+
+  // Milestone 12: Garden Memory & Growth Tracking
+  gardenInsights: GardenInsight[];
+  addJournalEntry: (entry: {
+    plantInstanceId: string;
+    plantId: string;
+    spaceId: string;
+    type: import('../types').PlantJournalEntryType;
+    occurredAt?: string;
+    note?: string;
+    mediaIds?: string[];
+    source?: 'user' | 'care_engine' | 'vision_ai' | 'system';
+    confidence?: number;
+    stage?: PlantLifecycleStage;
+    heightCm?: number;
+    environmentalSnapshot?: {
+      temperatureC?: number;
+      weatherCondition?: string;
+      isRainy?: boolean;
+    };
+  }) => PlantJournalEntry;
+  updatePlantLifecycleStage: (
+    instanceId: string,
+    newStage: PlantLifecycleStage,
+    note?: string
+  ) => void;
+  addPlantHeightMeasurement: (
+    instanceId: string,
+    heightCm: number,
+    note?: string
+  ) => void;
+  getAllGardenJournalEntries: () => PlantJournalEntry[];
 }
 
 const STORAGE_KEY = 'gardenmitra_state_v1';
@@ -277,20 +356,54 @@ export function normalizeGardenSpace(sp: GardenSpace): GardenSpace {
       updatedAt: new Date().toISOString()
     };
 
+  const userObservations: UserConfirmableObservation[] = Array.isArray(sp.userObservations)
+    ? sp.userObservations
+    : [];
+
+  const measurements: SpaceMeasurement[] =
+    Array.isArray(sp.measurements) && sp.measurements.length > 0
+      ? sp.measurements
+      : spaceMeasurementEngine.getMeasurementsForSpace(sp);
+
+  const coverage: SpaceCaptureCoverage =
+    sp.coverage ||
+    captureCoverageEngine.evaluateCoverage({
+      ...sp,
+      measurements,
+      userObservations
+    });
+
+  const digitalTwin: GardenDigitalTwin =
+    sp.digitalTwin ||
+    digitalTwinRecommendationEngine.getOrCreateDigitalTwin({
+      ...sp,
+      layout,
+      measurements,
+      userObservations,
+      coverage
+    });
+
   return {
     ...sp,
-    plants: (sp.plants || []).map((gp: GardenPlant) => ({
-      ...gp,
-      careHistory: Array.isArray(gp.careHistory) ? gp.careHistory : [],
-      wateringCount: typeof gp.wateringCount === 'number' ? gp.wateringCount : 0
-    })),
+    plants: (sp.plants || []).map((gp: GardenPlant, idx: number) => {
+      const normalized = gardenMemoryEngine.normalizePlantInstance(gp, sp.id, idx);
+      return {
+        ...normalized,
+        careHistory: Array.isArray(gp.careHistory) ? gp.careHistory : [],
+        wateringCount: typeof gp.wateringCount === 'number' ? gp.wateringCount : 0
+      };
+    }),
     photos: Array.isArray(sp.photos) ? sp.photos : [],
     mediaAssets: Array.isArray(sp.mediaAssets) ? sp.mediaAssets : [],
     captureSessions: Array.isArray(sp.captureSessions) ? sp.captureSessions : [],
     isSheltered: sp.isSheltered !== undefined ? sp.isSheltered : (sp.type === 'indoor' || sp.type === 'windowsill'),
     sunlightProfile,
     sunlightZones,
-    layout
+    layout,
+    measurements,
+    userObservations,
+    coverage,
+    digitalTwin
   };
 }
 
@@ -459,7 +572,7 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         checkedShoppingIds,
         chatMessages,
         storedAIObservations,
-        version: 3
+        version: 5
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
     } catch (e) {
@@ -1281,15 +1394,41 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     if (!selectedSpaceId || !selectedSpace) return;
     if (selectedSpace.plants.some((gp) => gp.plantId === plant.id)) return;
 
+    const now = new Date().toISOString();
+    const instanceId = `${selectedSpaceId}-${plant.id}-${Date.now()}`;
+    const initialJournalEntry = gardenMemoryEngine.createJournalEntry({
+      plantInstanceId: instanceId,
+      plantId: plant.id,
+      spaceId: selectedSpaceId,
+      type: 'planted',
+      occurredAt: now,
+      note: `Planted ${plant.name} in ${selectedSpace.name}`,
+      source: 'user',
+      stage: 'vegetative'
+    });
+
     const newPlant: GardenPlant = {
       plantId: plant.id,
       plant,
-      addedAt: new Date().toISOString(),
-      plantedAt: new Date().toISOString(),
+      addedAt: now,
+      plantedAt: now,
       status: 'planted',
       spaceId: selectedSpaceId,
       wateringCount: 0,
-      careHistory: []
+      careHistory: [],
+      instanceId,
+      lifecycleStage: 'vegetative',
+      lifecycleHistory: [
+        {
+          id: `init-${instanceId}`,
+          stage: 'vegetative',
+          transitionedAt: now,
+          note: 'Planted into space',
+          source: 'user'
+        }
+      ],
+      journalEntries: [initialJournalEntry],
+      heightMeasurements: []
     };
 
     editSpace(selectedSpaceId, {
@@ -1343,13 +1482,24 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       }
 
       const event = careEngine.createWateringEvent(plantId, selectedSpaceId, note);
+      const wateringJournalEntry = gardenMemoryEngine.createJournalEntry({
+        plantInstanceId: target.instanceId || `${selectedSpaceId}-${plantId}-0`,
+        plantId,
+        spaceId: selectedSpaceId,
+        type: 'watered',
+        occurredAt: event.timestamp,
+        note: note || 'Watered plant based on soil check',
+        source: 'user'
+      });
+
       const updatedPlants = selectedSpace.plants.map((gp) => {
         if (gp.plantId === plantId) {
           return {
             ...gp,
             lastWateredAt: event.timestamp,
             wateringCount: (gp.wateringCount || 0) + 1,
-            careHistory: [...(gp.careHistory || []), event]
+            careHistory: [...(gp.careHistory || []), event],
+            journalEntries: [wateringJournalEntry, ...(gp.journalEntries || [])]
           };
         }
         return gp;
@@ -1877,6 +2027,390 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     );
   }, [selectedSpace]);
 
+  // Milestone 9 Memoized Derivations
+  const spaceCoverage = useMemo(() => {
+    if (!selectedSpace) return null;
+    return captureCoverageEngine.evaluateCoverage(selectedSpace);
+  }, [selectedSpace]);
+
+  const spaceMeasurements = useMemo(() => {
+    return selectedSpace?.measurements || [];
+  }, [selectedSpace]);
+
+  const usableSpace = useMemo(() => {
+    if (!selectedSpace) return null;
+    return usableSpaceEngine.calculateUsableSpace(selectedSpace);
+  }, [selectedSpace]);
+
+  const userObservations = useMemo(() => {
+    return selectedSpace?.userObservations || [];
+  }, [selectedSpace]);
+
+  // Milestone 10 Memoized Digital Twin
+  const digitalTwin = useMemo(() => {
+    if (!selectedSpace) return null;
+    return digitalTwinRecommendationEngine.getOrCreateDigitalTwin(selectedSpace);
+  }, [selectedSpace]);
+
+  // Milestone 9 Actions
+  const evaluateSpaceCoverage = useCallback(
+    (spaceId: string): SpaceCaptureCoverage => {
+      const sp = spaces.find((s) => s.id === spaceId) || selectedSpace;
+      if (!sp) throw new Error('Space not found');
+      const updated = captureCoverageEngine.evaluateCoverage(sp);
+      editSpace(spaceId, { coverage: updated });
+      return updated;
+    },
+    [spaces, selectedSpace, editSpace]
+  );
+
+  const addSpaceMeasurement = useCallback(
+    (
+      spaceId: string,
+      data: Omit<SpaceMeasurement, 'id' | 'spaceId' | 'createdAt'>
+    ): SpaceMeasurement => {
+      const newMeasurement: SpaceMeasurement = {
+        id: `m-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        spaceId,
+        name: data.name,
+        value: data.value,
+        unit: data.unit,
+        source: data.source,
+        confidence: data.confidence,
+        createdAt: new Date().toISOString(),
+        evidenceMediaIds: data.evidenceMediaIds,
+        notes: data.notes
+      };
+      setGarden((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          spaces: prev.spaces.map((s) => {
+            if (s.id !== spaceId) return s;
+            const existing = s.measurements || [];
+            const updatedMeasurements = [...existing.filter((m) => m.name !== data.name), newMeasurement];
+            return {
+              ...s,
+              measurements: updatedMeasurements,
+              updatedAt: new Date().toISOString()
+            };
+          }),
+          updatedAt: new Date().toISOString()
+        };
+      });
+      return newMeasurement;
+    },
+    []
+  );
+
+  const removeSpaceMeasurement = useCallback((spaceId: string, measurementId: string) => {
+    setGarden((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        spaces: prev.spaces.map((s) => {
+          if (s.id !== spaceId) return s;
+          return {
+            ...s,
+            measurements: (s.measurements || []).filter((m) => m.id !== measurementId),
+            updatedAt: new Date().toISOString()
+          };
+        }),
+        updatedAt: new Date().toISOString()
+      };
+    });
+  }, []);
+
+  const confirmUserObservation = useCallback(
+    (
+      spaceId: string,
+      data: Omit<UserConfirmableObservation, 'id' | 'spaceId' | 'confirmedAt' | 'source'>
+    ): UserConfirmableObservation => {
+      const newObs: UserConfirmableObservation = {
+        id: `obs-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        spaceId,
+        category: data.category,
+        question: data.question,
+        value: data.value,
+        confirmedAt: new Date().toISOString(),
+        source: 'user_confirmed',
+        notes: data.notes
+      };
+      setGarden((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          spaces: prev.spaces.map((s) => {
+            if (s.id !== spaceId) return s;
+            const existing = s.userObservations || [];
+            const updatedObs = [...existing.filter((o) => o.category !== data.category), newObs];
+            const updatedCoverage = captureCoverageEngine.evaluateCoverage({
+              ...s,
+              userObservations: updatedObs
+            });
+            return {
+              ...s,
+              userObservations: updatedObs,
+              coverage: updatedCoverage,
+              updatedAt: new Date().toISOString()
+            };
+          }),
+          updatedAt: new Date().toISOString()
+        };
+      });
+      return newObs;
+    },
+    []
+  );
+
+  // Milestone 10 Actions
+  const generateDigitalTwinProposal = useCallback(
+    (spaceId: string, mode: DigitalTwinProposalMode): DigitalTwinProposal => {
+      const targetSpace = spaces.find((s) => s.id === spaceId) || selectedSpace;
+      if (!targetSpace) throw new Error('Space not found');
+      const proposal = digitalTwinRecommendationEngine.generateProposal(targetSpace, mode);
+      setGarden((prev) => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          spaces: prev.spaces.map((s) => {
+            if (s.id !== spaceId) return s;
+            const currentTwin = digitalTwinRecommendationEngine.getOrCreateDigitalTwin(s);
+            const existingProposals = currentTwin.proposals || [];
+            const updatedTwin: GardenDigitalTwin = {
+              ...currentTwin,
+              proposals: [...existingProposals.filter((p) => p.mode !== mode), proposal],
+              activeProposal: proposal,
+              updatedAt: new Date().toISOString()
+            };
+            return {
+              ...s,
+              digitalTwin: updatedTwin,
+              updatedAt: new Date().toISOString()
+            };
+          }),
+          updatedAt: new Date().toISOString()
+        };
+      });
+      return proposal;
+    },
+    [spaces, selectedSpace]
+  );
+
+  const acceptDigitalTwinProposal = useCallback((spaceId: string, proposalId: string) => {
+    setGarden((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        spaces: prev.spaces.map((s) => {
+          if (s.id !== spaceId) return s;
+          const twin = s.digitalTwin;
+          const proposal =
+            twin?.proposals?.find((p) => p.id === proposalId) ||
+            (twin?.activeProposal?.id === proposalId ? twin.activeProposal : null);
+          if (!proposal) return s;
+
+          const updatedLayout: SpaceLayout = {
+            ...proposal.layout,
+            updatedAt: new Date().toISOString()
+          };
+          const updatedTwin: GardenDigitalTwin = {
+            ...twin!,
+            layout: updatedLayout,
+            activeProposal: undefined,
+            updatedAt: new Date().toISOString()
+          };
+          return {
+            ...s,
+            layout: updatedLayout,
+            digitalTwin: updatedTwin,
+            updatedAt: new Date().toISOString()
+          };
+        }),
+        updatedAt: new Date().toISOString()
+      };
+    });
+  }, []);
+
+  const discardDigitalTwinProposal = useCallback((spaceId: string, proposalId: string) => {
+    setGarden((prev) => {
+      if (!prev) return null;
+      return {
+        ...prev,
+        spaces: prev.spaces.map((s) => {
+          if (s.id !== spaceId) return s;
+          const twin = s.digitalTwin;
+          if (!twin) return s;
+          const updatedTwin: GardenDigitalTwin = {
+            ...twin,
+            proposals: (twin.proposals || []).filter((p) => p.id !== proposalId),
+            activeProposal: twin.activeProposal?.id === proposalId ? undefined : twin.activeProposal,
+            updatedAt: new Date().toISOString()
+          };
+          return {
+            ...s,
+            digitalTwin: updatedTwin,
+            updatedAt: new Date().toISOString()
+          };
+        }),
+        updatedAt: new Date().toISOString()
+      };
+    });
+  }, []);
+
+  const getVisualConceptOutput = useCallback(
+    (spaceId: string, proposal: DigitalTwinProposal): VisualConceptOutput => {
+      const targetSpace = spaces.find((s) => s.id === spaceId) || selectedSpace;
+      if (!targetSpace) throw new Error('Space not found');
+      return aiVisualizerService.generateConceptVisualization(targetSpace, proposal);
+    },
+    [spaces, selectedSpace]
+  );
+
+  // Milestone 12: Garden Memory & Growth Tracking Hooks
+  const allPlantsList = useMemo(() => {
+    return (garden?.spaces || []).flatMap((s) => s.plants || []);
+  }, [garden]);
+
+  const allCareEventsList = useMemo(() => {
+    return allPlantsList.flatMap((p) => p.careHistory || []);
+  }, [allPlantsList]);
+
+  const gardenInsights = useMemo(() => {
+    if (!garden) return [];
+    return gardenMemoryEngine.generateGardenInsights(allPlantsList, garden.spaces || [], allCareEventsList);
+  }, [garden, allPlantsList, allCareEventsList]);
+
+  const addJournalEntry = useCallback((entryData: {
+    plantInstanceId: string;
+    plantId: string;
+    spaceId: string;
+    type: import('../types').PlantJournalEntryType;
+    occurredAt?: string;
+    note?: string;
+    mediaIds?: string[];
+    source?: 'user' | 'care_engine' | 'vision_ai' | 'system';
+    confidence?: number;
+    stage?: PlantLifecycleStage;
+    heightCm?: number;
+    environmentalSnapshot?: {
+      temperatureC?: number;
+      weatherCondition?: string;
+      isRainy?: boolean;
+    };
+  }): PlantJournalEntry => {
+    const entry = gardenMemoryEngine.createJournalEntry({
+      ...entryData,
+      environmentalSnapshot: entryData.environmentalSnapshot || (environmentalContext ? {
+        temperatureC: environmentalContext.snapshot.temperatureC,
+        weatherCondition: environmentalContext.snapshot.conditionText,
+        isRainy: environmentalContext.snapshot.rainfallMm > 0
+      } : undefined)
+    });
+
+    if (garden) {
+      const updatedSpaces = garden.spaces.map((sp) => {
+        if (sp.id !== entryData.spaceId) return sp;
+        const updatedPlants = sp.plants.map((p) => {
+          if (p.instanceId !== entryData.plantInstanceId && p.plantId !== entryData.plantId) {
+            return p;
+          }
+          const existingJournal = p.journalEntries || [];
+          const updatedJournal = [entry, ...existingJournal];
+
+          let updatedStage = p.lifecycleStage;
+          let updatedHistory = p.lifecycleHistory || [];
+          if (entryData.type === 'stage_changed' && entryData.stage) {
+            updatedStage = entryData.stage;
+            updatedHistory = [
+              ...updatedHistory,
+              {
+                id: `stage-${Date.now()}`,
+                stage: entryData.stage,
+                transitionedAt: entry.occurredAt,
+                note: entryData.note,
+                source: entryData.source === 'system' ? 'system' : 'user'
+              }
+            ];
+          }
+
+          let updatedMeasurements = p.heightMeasurements || [];
+          if (entryData.type === 'height_measured' && entryData.heightCm !== undefined) {
+            updatedMeasurements = [
+              ...updatedMeasurements,
+              {
+                id: `height-${Date.now()}`,
+                heightCm: entryData.heightCm,
+                measuredAt: entry.occurredAt,
+                source: 'user_measured',
+                note: entryData.note
+              }
+            ];
+          }
+
+          return {
+            ...p,
+            lifecycleStage: updatedStage,
+            lifecycleHistory: updatedHistory,
+            journalEntries: updatedJournal,
+            heightMeasurements: updatedMeasurements
+          };
+        });
+
+        return { ...sp, plants: updatedPlants, updatedAt: new Date().toISOString() };
+      });
+
+      setGarden({ ...garden, spaces: updatedSpaces, updatedAt: new Date().toISOString() });
+    }
+
+    return entry;
+  }, [garden, environmentalContext]);
+
+  const updatePlantLifecycleStage = useCallback((
+    instanceId: string,
+    newStage: PlantLifecycleStage,
+    note?: string
+  ) => {
+    const targetPlant = allPlantsList.find((p) => p.instanceId === instanceId || p.plantId === instanceId);
+    if (!targetPlant || !targetPlant.spaceId) return;
+
+    addJournalEntry({
+      plantInstanceId: targetPlant.instanceId || instanceId,
+      plantId: targetPlant.plantId,
+      spaceId: targetPlant.spaceId,
+      type: 'stage_changed',
+      stage: newStage,
+      note: note || `Growth stage updated to ${newStage}`,
+      source: 'user'
+    });
+  }, [allPlantsList, addJournalEntry]);
+
+  const addPlantHeightMeasurement = useCallback((
+    instanceId: string,
+    heightCm: number,
+    note?: string
+  ) => {
+    const targetPlant = allPlantsList.find((p) => p.instanceId === instanceId || p.plantId === instanceId);
+    if (!targetPlant || !targetPlant.spaceId) return;
+
+    addJournalEntry({
+      plantInstanceId: targetPlant.instanceId || instanceId,
+      plantId: targetPlant.plantId,
+      spaceId: targetPlant.spaceId,
+      type: 'height_measured',
+      heightCm,
+      note: note || `Height recorded: ${heightCm}cm`,
+      source: 'user'
+    });
+  }, [allPlantsList, addJournalEntry]);
+
+  const getAllGardenJournalEntries = useCallback((): PlantJournalEntry[] => {
+    const allEntries = allPlantsList.flatMap((p) => p.journalEntries || []);
+    return allEntries.sort(
+      (a, b) => new Date(b.occurredAt).getTime() - new Date(a.occurredAt).getTime()
+    );
+  }, [allPlantsList]);
+
   return (
     <GardenContext.Provider
       value={{
@@ -1961,7 +2495,25 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         saveMediaAsset,
         deleteMediaAsset,
         extractVideoFrames,
-        analyzeSpaceMedia
+        analyzeSpaceMedia,
+        spaceCoverage,
+        spaceMeasurements,
+        usableSpace,
+        userObservations,
+        evaluateSpaceCoverage,
+        addSpaceMeasurement,
+        removeSpaceMeasurement,
+        confirmUserObservation,
+        digitalTwin,
+        generateDigitalTwinProposal,
+        acceptDigitalTwinProposal,
+        discardDigitalTwinProposal,
+        getVisualConceptOutput,
+        gardenInsights,
+        addJournalEntry,
+        updatePlantLifecycleStage,
+        addPlantHeightMeasurement,
+        getAllGardenJournalEntries
       }}
     >
       {children}

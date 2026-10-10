@@ -9,7 +9,8 @@ import {
   Trash2,
   Sparkles,
   HelpCircle,
-  X
+  X,
+  Box
 } from 'lucide-react';
 
 export const SpaceLayoutPlanner: React.FC = () => {
@@ -24,7 +25,8 @@ export const SpaceLayoutPlanner: React.FC = () => {
     removePlantPlacement,
     addSpaceZone,
     removeSpaceZone,
-    autoOptimizeLayout
+    autoOptimizeLayout,
+    setActiveTab
   } = useGarden();
 
   // Modals / forms
@@ -166,6 +168,16 @@ export const SpaceLayoutPlanner: React.FC = () => {
 
         {/* Action Buttons */}
         <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+          <button
+            type="button"
+            onClick={() => setActiveTab('twin')}
+            className="btn btn-secondary btn-sm"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+            title="Open Garden Digital Twin and AI Visualizer"
+          >
+            <Box size={14} />
+            <span>Digital Twin 🏛️</span>
+          </button>
           <button
             type="button"
             onClick={() => autoOptimizeLayout(selectedSpace.id)}

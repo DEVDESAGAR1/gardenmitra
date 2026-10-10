@@ -10,7 +10,8 @@ import {
   GardenPhotoAnalysisResult,
   PlantPhotoAnalysisResult,
   ModelAvailabilityStatus,
-  EnvironmentalContext
+  EnvironmentalContext,
+  MultiMediaAnalysisResult
 } from '../types';
 import { VisionProvider } from './types';
 
@@ -56,6 +57,35 @@ export class LocalVisionProvider implements VisionProvider {
         ]
       },
       disclaimer: 'No AI model was executed. Never claiming fabricated computer vision results.'
+    };
+  }
+
+  async analyzeMultiMedia(
+    items: { id: string; dataUrl: string; label?: string }[],
+    space?: GardenSpace | null
+  ): Promise<MultiMediaAnalysisResult> {
+    const spaceName = space?.name || space?.type || 'Garden space';
+    return {
+      status: 'unavailable',
+      providerId: this.id,
+      timestamp: new Date().toISOString(),
+      spaceId: space?.id,
+      likelySpaceType: space?.type || 'Garden space',
+      visibleBoundaries: 'Local safe mode active (No on-device model connected)',
+      observations: [
+        {
+          category: 'System',
+          description: `Saved ${items.length} photo(s)/keyframe(s) safely to ${spaceName}. Automated multimodal inference requires a connected local Ollama vision model.`,
+          confidence: 'low',
+          requiresUserConfirmation: false
+        }
+      ],
+      uncertaintiesAndLimitations: [
+        'No AI model was executed. Never claiming fabricated computer vision results.',
+        'Physical safety, load capacity, and soil moisture must be inspected on-site.'
+      ],
+      suggestedAdditionalViews: ['Entrance looking outward', 'Drainage outlet and open sky'],
+      disclaimer: 'No on-device AI model was executed. Safe local guidance active.'
     };
   }
 

@@ -72,6 +72,10 @@ export interface GardenSpace {
   mediaAssets?: GardenMediaAsset[];
   captureSessions?: GardenCaptureSession[];
   isSheltered?: boolean;
+  coverage?: SpaceCaptureCoverage;
+  measurements?: SpaceMeasurement[];
+  digitalTwin?: GardenDigitalTwin;
+  userObservations?: UserConfirmableObservation[];
 }
 
 /**
@@ -115,8 +119,77 @@ export interface GardenPhoto {
   note?: string;
 }
 
-export type PlantCategory = 'herbs' | 'vegetables' | 'flowers' | 'fruits';
-export type PlantDifficulty = 'Very Easy' | 'Easy' | 'Moderate';
+export type PlantCategory = 
+  | 'herbs' 
+  | 'vegetables' 
+  | 'flowers' 
+  | 'fruits' 
+  | 'indoor' 
+  | 'succulents' 
+  | 'native' 
+  | 'other';
+
+export type PlantDifficulty = 'Very Easy' | 'Easy' | 'Moderate' | 'Intermediate' | 'Challenging';
+
+/**
+ * Milestone 11: Plant Knowledge & Provenance Models
+ */
+export interface PlantContainerRequirement {
+  minimumDepthCm?: number;
+  recommendedDepthCm?: number;
+  minimumVolumeLitres?: number;
+  spacingCm?: number;
+}
+
+export interface PlantSoilRequirement {
+  texture?: string[];
+  drainage?: 'poor' | 'moderate' | 'good' | 'unknown';
+  phMin?: number;
+  phMax?: number;
+}
+
+export interface PlantTemperatureRequirement {
+  minC?: number;
+  optimalMinC?: number;
+  optimalMaxC?: number;
+  maxC?: number;
+}
+
+export interface PlantGrowthMetrics {
+  germinationDaysMin?: number;
+  germinationDaysMax?: number;
+  maturityDaysMin?: number;
+  maturityDaysMax?: number;
+  matureHeightCm?: number;
+  matureWidthCm?: number;
+  perennial?: boolean;
+}
+
+export interface PlantSeasonRule {
+  region?: 'all_india' | 'north_plains' | 'south_peninsular' | 'coastal' | 'hills' | 'north' | 'south' | 'east' | 'west' | 'central';
+  seasons: Array<'summer' | 'monsoon' | 'winter' | 'spring' | 'autumn' | 'year_round'>;
+  months?: number[]; // 1 to 12
+  guidance: string;
+}
+
+export interface PlantCareInstruction {
+  title: string;
+  category: 'watering' | 'sunlight' | 'soil' | 'pruning' | 'feeding' | 'protection';
+  instruction: string;
+  frequencyDays?: number;
+}
+
+export interface PlantDataQuality {
+  status: 'verified' | 'reviewed' | 'provisional';
+  sources: Array<{
+    name: string;
+    url?: string;
+    accessedAt?: string;
+    licence?: string;
+  }>;
+  lastReviewedAt?: string;
+  missingFields?: string[];
+}
 
 export interface Plant {
   id: string;
@@ -140,6 +213,20 @@ export interface Plant {
   basicCare: string[];
   thingsToWatchFor: string[];
   idealSeason?: string;
+
+  // Milestone 11 Knowledge Base Extensions
+  regionalNames?: Record<string, string[]>;
+  containerRequirements?: PlantContainerRequirement;
+  soilRequirements?: PlantSoilRequirement;
+  temperatureRequirements?: PlantTemperatureRequirement;
+  growthMetrics?: PlantGrowthMetrics;
+  seasonalRules?: PlantSeasonRule[];
+  careInstructions?: PlantCareInstruction[];
+  edible?: boolean;
+  toxicToPets?: boolean;
+  indoorSuitable?: boolean;
+  maintenance?: 'low' | 'medium' | 'high';
+  dataQuality?: PlantDataQuality;
 }
 
 export interface PlantRecommendation {
@@ -147,6 +234,22 @@ export interface PlantRecommendation {
   matchScore: number; // 0 - 100
   reasoning: string[];
   warningNote?: string;
+  positiveReasons?: string[];
+  potentialConflicts?: string[];
+  missingInformation?: string[];
+  confidenceLevel?: 'high' | 'moderate' | 'tentative';
+  nextAction?: string;
+}
+
+export interface PlantSearchFilters {
+  category?: PlantCategory;
+  sunlightRequirement?: 'low' | 'partial' | 'full';
+  difficulty?: PlantDifficulty;
+  edibleOnly?: boolean;
+  petSafeOnly?: boolean;
+  indoorOnly?: boolean;
+  maintenance?: 'low' | 'medium' | 'high';
+  maxContainerDepthCm?: number;
 }
 
 export type CareEventType = 
@@ -169,6 +272,86 @@ export interface CareEvent {
   soilCondition?: 'dry' | 'moist';
 }
 
+/**
+ * Milestone 12: Garden Memory & Growth Tracking Models
+ */
+export type PlantLifecycleStage =
+  | 'planned'
+  | 'seeded'
+  | 'germinated'
+  | 'seedling'
+  | 'vegetative'
+  | 'flowering'
+  | 'fruiting'
+  | 'harvest'
+  | 'dormant'
+  | 'declining'
+  | 'removed'
+  | 'unknown';
+
+export type PlantJournalEntryType =
+  | 'planted'
+  | 'watered'
+  | 'fertilized'
+  | 'pruned'
+  | 'transplanted'
+  | 'stage_changed'
+  | 'flowering'
+  | 'harvested'
+  | 'symptom_observed'
+  | 'photo_added'
+  | 'height_measured'
+  | 'user_note'
+  | 'care_action';
+
+export interface PlantJournalEntry {
+  id: string;
+  plantInstanceId: string;
+  plantId: string;
+  spaceId: string;
+  type: PlantJournalEntryType;
+  occurredAt: string;
+  recordedAt: string;
+  note?: string;
+  mediaIds?: string[];
+  source: 'user' | 'care_engine' | 'vision_ai' | 'system';
+  confidence?: number;
+  stage?: PlantLifecycleStage;
+  heightCm?: number;
+  environmentalSnapshot?: {
+    temperatureC?: number;
+    weatherCondition?: string;
+    isRainy?: boolean;
+  };
+}
+
+export interface PlantLifecycleEvent {
+  id: string;
+  stage: PlantLifecycleStage;
+  transitionedAt: string;
+  note?: string;
+  source: 'user' | 'system';
+}
+
+export interface PlantHeightMeasurement {
+  id: string;
+  heightCm: number;
+  measuredAt: string;
+  source: 'user_measured';
+  note?: string;
+}
+
+export interface GardenInsight {
+  id: string;
+  plantInstanceId?: string;
+  spaceId?: string;
+  title: string;
+  description: string;
+  category: 'milestone' | 'consistency' | 'check_in' | 'seasonal';
+  urgency: 'low' | 'normal' | 'info';
+  createdAt: string;
+}
+
 export interface GardenPlant {
   plantId: string;
   plant: Plant;
@@ -181,6 +364,14 @@ export interface GardenPlant {
   wateringCount?: number;
   lastCheckedAt?: string;
   careHistory?: CareEvent[];
+
+  // Milestone 12 Plant Instance & Lifecycle Tracking
+  instanceId?: string; // Stable unique plant instance ID
+  containerId?: string;
+  lifecycleStage?: PlantLifecycleStage;
+  lifecycleHistory?: PlantLifecycleEvent[];
+  journalEntries?: PlantJournalEntry[];
+  heightMeasurements?: PlantHeightMeasurement[];
 }
 
 export type CareReminderType = 
@@ -666,5 +857,134 @@ export interface MultiMediaAnalysisResult {
   suggestedAdditionalViews: string[];
   disclaimer: string;
   message?: string;
+}
+
+/**
+ * Milestone 9: Adaptive Space Scanning & Measurement Models
+ */
+export type CaptureView =
+  | 'entrance'
+  | 'front'
+  | 'left'
+  | 'right'
+  | 'rear'
+  | 'floor'
+  | 'ceiling'
+  | 'sky'
+  | 'drainage'
+  | 'water_source'
+  | 'boundary'
+  | 'shade'
+  | 'existing_plants'
+  | 'unknown';
+
+export type CoverageStatus =
+  | 'unknown'
+  | 'partially_covered'
+  | 'covered'
+  | 'needs_confirmation';
+
+export interface CaptureCoverageItem {
+  view: CaptureView;
+  label: string;
+  description: string;
+  status: CoverageStatus;
+  evidenceMediaIds: string[];
+  confidence: number;
+  reason?: string;
+  directionPrompt?: string;
+  whyItMatters?: string;
+}
+
+export interface SpaceCaptureCoverage {
+  spaceId: string;
+  updatedAt: string;
+  views: CaptureCoverageItem[];
+  overallConfidence: number;
+  coveredCount: number;
+  totalRequiredViews: number;
+  missingImportantViews: CaptureView[];
+  nextRecommendedView?: CaptureCoverageItem;
+}
+
+export type MeasurementSource =
+  | 'user_measured'
+  | 'reference_calibrated'
+  | 'visual_estimate';
+
+export interface SpaceMeasurement {
+  id: string;
+  spaceId: string;
+  name: string;
+  value: number;
+  unit: 'm' | 'cm' | 'ft' | 'm2' | 'ft2';
+  source: MeasurementSource;
+  confidence: number;
+  createdAt: string;
+  evidenceMediaIds?: string[];
+  notes?: string;
+}
+
+export interface UsableSpaceCalculation {
+  spaceId: string;
+  totalFloorAreaSqFt: number;
+  usablePlantingAreaSqFt: number;
+  walkingAreaSqFt: number;
+  obstacleAreaSqFt: number;
+  containerOccupiedAreaSqFt: number;
+  unit: 'sq_ft' | 'sq_m';
+  confidence: 'high' | 'moderate' | 'rough_estimate';
+  assumptions: string[];
+  warnings: string[];
+}
+
+export interface UserConfirmableObservation {
+  id: string;
+  spaceId: string;
+  category: 'rain_exposure' | 'walkway' | 'railing_safety' | 'drainage' | 'shade' | 'other';
+  question: string;
+  value: string;
+  confirmedAt: string;
+  source: 'user_confirmed';
+  notes?: string;
+}
+
+/**
+ * Milestone 10: Garden Digital Twin & AI Visualizer Models
+ */
+export type DigitalTwinProposalMode =
+  | 'space_efficient'
+  | 'beginner_friendly'
+  | 'max_edibles'
+  | 'low_maintenance';
+
+export interface DigitalTwinProposal {
+  id: string;
+  mode: DigitalTwinProposalMode;
+  title: string;
+  description: string;
+  layout: SpaceLayout;
+  explanations: string[];
+  newPlacementsCount: number;
+  movedContainersCount: number;
+  usablePlantingAreaSqFt: number;
+  warnings: LayoutIssue[];
+  createdAt: string;
+}
+
+export interface GardenDigitalTwin {
+  id: string;
+  spaceId: string;
+  version: number;
+  updatedAt: string;
+  layout: SpaceLayout;
+  measurements: SpaceMeasurement[];
+  coverage?: SpaceCaptureCoverage;
+  usableSpace?: UsableSpaceCalculation;
+  evidenceMediaIds: string[];
+  observations: UserConfirmableObservation[];
+  assumptions: string[];
+  proposals?: DigitalTwinProposal[];
+  activeProposal?: DigitalTwinProposal;
 }
 

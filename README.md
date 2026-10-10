@@ -33,55 +33,74 @@ GardenMitra solves this by offering an opinionated, beginner-proof onboarding pa
 
 ---
 
-## 🚀 Implemented Features (MVP)
+## 🚀 Implemented Milestones (M0 – M12)
 
-| Feature | Status | Description |
+| Milestone | Status | Description |
 | :--- | :---: | :--- |
-| **Welcome Screen** | ✅ Implemented | Warm, accessible landing page introducing the Hacktoberfest Touch Grass philosophy. |
-| **Zero-GPS Garden Setup** | ✅ Implemented | Fast, friendly onboarding: City/State/Country, Space Type (balcony/terrace/windowsill), Space Size, Sunlight hours, Experience level, and Goals. Includes "I don't know" as a first-class choice. |
-| **Space Photo Uploader** | ✅ Implemented | Drag & drop or upload balcony/terrace photos with local preview. Includes preset sample spaces for quick testing. Zero fake computer vision detections. |
-| **Local Plant Recommendations** | ✅ Implemented | Local rule-based recommendation engine scoring beginner crops (Mint, Coriander, Tulsi, Spinach, Fenugreek, Cherry Tomato, Chilli, Radish, Marigold) with personalized *"Why this plant?"* reasoning. |
-| **Plant Care Detail Cards** | ✅ Implemented | Accessible modal care cards showing sunlight, watering, container guidance, timeline, basic care, and common beginner gotchas. |
-| **Automatic Shopping List** | ✅ Implemented | Automatically generated starter list grouped into Containers, Seeds/Saplings, Growing Medium, Nutrients, and Tools. Explains *"What is this for?"* for every item. |
-| **Ask GardenMitra (Context-Aware Chatbot)** | ✅ Implemented | Rule-based assistant aware of user location, space type, sunlight hours, and active plants. Handles common beginner questions and suggests follow-up queries. |
-| **Garden Doctor** | ✅ Implemented | Educational symptom checker (yellow leaves, brown tips, wilting, insects, spots). Provides practical next steps without claiming diagnosis. |
-| **Today's Garden Checklist** | ✅ Implemented | Generates practical daily tasks (1-inch finger test, leaf underside check, pot rotation, mindful watering) with an 8-minute timer and Touch Grass prompts. |
-| **"Touch Grass" Exit Prompt** | ✅ Implemented | Dedicated grounding modal offering a 3-minute sensory outdoor exercise (Look, Touch, Breathe) when tasks are done. |
-| **Local-First Persistence** | ✅ Implemented | 100% private client-side persistence using `localStorage`. No accounts, no ads, no tracking. |
+| **M0–M1: Multi-Space Foundation** | ✅ Complete | Multi-space garden modeling (Balconies, Terraces, Windowsills, Yards), setup wizard, plant matching & care cards. |
+| **M2: Environmental Rules** | ✅ Complete | Rule engine for heat, rain, and wind advice, connected with daily checklist generation. |
+| **M3: Smart Care & Touch Grass** | ✅ Complete | 1-inch finger soil test, care logs, watering tracker, web notifications, and sensory exit exercises. |
+| **M4: On-Device Vision AI** | ✅ Complete | Local Ollama/Gemma vision adapter with zero fake computer vision detections and honest availability status. |
+| **M5: Sunlight Intelligence** | ✅ Complete | Local solar elevation & azimuth calculations, seasonal daylight curves, and morning/afternoon exposure zones. |
+| **M6: Space & Layout Planner** | ✅ Complete | Interactive space layout grid, container placement, walkway clearance checking, and companion zoning. |
+| **M7: Automatic Location & Real Weather** | ✅ Complete | Browser Geolocation API integration, Open-Meteo live forecast API, 30-min cache, honest stale/unavailable states, and shelter-aware idempotent weather tasks. |
+| **M8: Garden Capture Intelligence** | ✅ Complete | Unified multi-media capture studio, direct camera & video recording, keyframe extraction, IndexedDB binary storage, space guidance checklists, and multi-image vision analysis. |
+| **M9: Space Scanning & Usable Space** | ✅ Complete | Multi-angle scan guidance, tile calibration with manual overrides, protected 2ft walking corridors, and usable area calculations. |
+| **M10: Digital Twin & Layout Proposals** | ✅ Complete | Persistent 2D twin with visual uncertainty representation, 4 deterministic layout algorithms, and offline canvas visualizer. |
+| **M11: Plant Knowledge Expansion** | ✅ Complete | 104 curated Indian home garden plants, structured provenance metadata (ICAR/TNAU/POWO), multi-field search (Devanagari/scientific/regional), and explainable recommendation intelligence. |
+| **M12: Garden Memory & Growth Tracking** | ✅ Complete | Stable plant instance identity, lifecycle stage tracking, chronological growth journal, photo comparisons with honest perspective disclaimers, height measurement log, and gentle garden insights. |
 
 ---
 
-## 🏗️ Architecture for Future Migration
-
-GardenMitra does not lock logic to the MVP implementation. All subsystems are built around clean **TypeScript Provider Interfaces**:
+## 🏗️ Architecture & Subsystems
 
 ```
 src/
 ├── services/
-│   ├── types.ts                     # Core Provider Interfaces
-│   │   ├── VisionProvider           # Garden space & plant health image analysis
-│   │   ├── GardenAssistantProvider  # Context-aware chat companion
-│   │   ├── PlantKnowledgeProvider   # Plant dataset & recommendation scoring
-│   │   ├── ShoppingProvider         # Starter gear & supply checklist generator
-│   │   ├── TaskGenerator            # Daily routine & Touch Grass generator
-│   │   └── WeatherProvider          # Future climate & watering guidance
-│   ├── localVisionProvider.ts       # MVP: Safe, honest local implementation (no fake CV)
-│   ├── localAssistantProvider.ts    # MVP: Context-aware local rule engine
-│   ├── localPlantKnowledgeProvider.ts # MVP: Curated beginner crop dataset & scorer
-│   ├── localShoppingProvider.ts     # MVP: Category-based equipment generator
-│   └── localTaskGenerator.ts        # MVP: Bite-sized ~8-minute task generator
+│   ├── localPlantKnowledgeProvider.ts   # M11: 104-plant catalog, multi-field search & explainable recommendation engine
+│   ├── growthTrackingEngine.ts          # M12: Lifecycle stage tracking, height analytics & qualitative comparison
+│   ├── gardenMemoryEngine.ts            # M12: Plant instance normalization, journal entries & gentle insights
+│   ├── browserLocationProvider.ts       # M7: User-initiated Geolocation API & fallback
+│   ├── openMeteoWeatherProvider.ts      # M7: Real Open-Meteo forecast API & 30m cache
+│   ├── environmentalRuleEngine.ts       # M2/M7: Weather advice & shelter-aware tasks
+│   ├── localSunPositionProvider.ts      # M5/M7: Solar calculations using geo coordinates
+│   ├── localMediaStorage.ts             # M8: IndexedDB binary storage for photos/videos
+│   ├── videoFrameExtractor.ts           # M8: In-browser keyframe extraction & downscaling
+│   ├── captureGuidanceService.ts        # M8: Space-specific capture checklists
+│   ├── captureCoverageEngine.ts        # M9: Space view angle coverage and missing view suggestions
+│   ├── spaceMeasurementEngine.ts        # M9: Calibration via tiles or known dimensions
+│   ├── usableSpaceEngine.ts             # M9: Protected walking corridor & usable area computation
+│   ├── digitalTwinRecommendationEngine.ts # M10: 4 layout proposal strategies
+│   ├── aiVisualizerService.ts           # M10: 100% offline architectural sketch visualizer
+│   ├── layoutOptimizationEngine.ts      # M6: Space layout & container optimizer
+│   ├── sunlightEstimationEngine.ts      # M5: Sunlight hours & profile engine
+│   ├── careEngine.ts                    # M3: Smart watering & reminder engine
+│   └── types.ts                         # Core Provider Interfaces
+├── components/
+│   ├── GardenJournalView.tsx            # M12: Growth journal, photo comparison & height tracker
+│   ├── PlantRecommendationView.tsx      # M11: Searchable plant library & explainable recommendations
+│   ├── PlantDetailModal.tsx             # M11: Detailed botanical card with provenance & regional names
+│   ├── DigitalTwinStudio.tsx            # M10: Interactive 2D twin & layout proposal generator
+│   ├── AdaptiveScanGuidanceCard.tsx     # M9: Scan angle checklist & calibration wizard
+│   ├── GardenCaptureStudio.tsx          # M8: Unified Photo / Camera / Video capture
+│   ├── WeatherWidget.tsx                # M7: Real environmental conditions & controls
+│   └── ...
+└── context/
+    └── GardenContext.tsx                # Unified state, IndexedDB & LocalStorage sync (Schema v5)
 ```
 
-### Clearly Distinguishing Current vs. Future Roadmap
+### Architectural Highlights
 
-| Subsystem | Implemented Now (MVP) | Planned / Future Architecture |
-| :--- | :--- | :--- |
-| **Space Vision** | `LocalVisionProvider` (Stores image locally; displays honest status notice without fake CV scores) | `GemmaVisionProvider` / local multimodal model for railing detection and shadow mapping |
-| **Chat Assistant** | `LocalGardenAssistantProvider` (Deterministic, context-aware rule-based companion) | `OllamaGardenAssistantProvider` / on-device Gemma with explicit user consent |
-| **Shopping** | `LocalShoppingProvider` (Educational categorization and necessity explanations) | `SerpApiShoppingProvider` / local nursery open directory search |
-| **Plant Health** | `LocalVisionProvider` (Symptom-based educational checklist with non-diagnosis notice) | `PlantHealthVisionProvider` for visual disease assistance |
-| **Weather** | User profile sunlight self-reporting | `OpenMeteoWeatherProvider` for real-time rain & frost warnings |
-| **Persistence** | Browser `localStorage` (100% private, zero server footprint) | Optional local SQLite / IndexedDB sync |
+- **M7 Open-Meteo Weather Integration:** Uses the official public Open-Meteo API (`https://api.open-meteo.com/v1/forecast`) with zero required API keys. Responses are cached in `localStorage` for 30 minutes to respect API rate limits. Four distinct status states are exposed: **Live** (direct network response), **Cached** (within TTL), **Stale** (network failed but cached data available), and **Unavailable** (network offline and no cache).
+- **M7 Shelter-Aware Weather Tasks:** Weather advice generates additive, idempotent tasks (e.g. `weather-task-rain-<spaceId>`). Indoor rooms and sheltered balconies (`isSheltered: true`) never receive outdoor rain tasks.
+- **M7 Solar Positioning:** Astronomical solar elevation and daylight calculations directly consume user coordinates from browser geolocation or manual selection.
+- **M8 Privacy-Conscious Binary Media Storage:** Large video blobs and high-resolution photos are stored in browser **IndexedDB** (`gardenmitra_media_db`), preventing `localStorage` quota overflow. Lightweight JPEG thumbnails are generated for instant UI previews.
+- **M8 Video Keyframe Extraction:** Runs entirely client-side using temporary HTML5 `<video>` elements and `<canvas>` downscaling to 960px. Supports user cancellation via `AbortSignal`, progress tracking, and cleans up object URLs to prevent memory leaks.
+- **M8 Multi-View Multimodal Vision AI:** Analyzes collections of space photos and extracted video keyframes via local Ollama (`gemma3:latest`). Observations explicitly require user confirmation for structural safety and load limits. Never claims 3D millimeter precision or fabricated confidence.
+- **M9 Adaptive Space Scanning & Usable Space:** Evaluates documented angles per space type (`balcony`, `terrace`, `backyard`, `windowsill`), prioritizes missing views, calibrates physical dimensions using tile references or user measurements without assuming standard tile sizes, preserves a protected 2ft walking corridor, and stores user-confirmed observations distinctly from AI estimations.
+- **M10 Garden Digital Twin & AI Visualizer:** Maintains an editable, persistent digital representation of each real garden space with visual uncertainty rendering (solid = measured, dashed = estimated, hatched = clear walkways). Provides 4 deterministic layout proposal modes (`beginner_friendly`, `space_efficient`, `max_edibles`, `low_maintenance`), before-and-after visual comparisons without state mutation before user acceptance, and 100% offline conceptual architectural rendering with explicit illustrative disclaimers.
+- **M11 Plant Knowledge Base & Recommendation Intelligence:** 104 curated plant profiles tailored to Indian balconies, terraces, and home gardens. Comprehensive multi-field search across English, Hindi (Latin + Devanagari), botanical scientific names, and regional dialects (Tamil, Telugu, Bengali, Kannada, Marathi). Deterministic explainable recommendation engine breaking matches into positive reasons, potential conflicts, missing information, and next practical actions. Strict data provenance metadata attributing ICAR, TNAU, and Kew POWO.
+- **M12 Garden Memory & Growth Tracking:** Stable plant instance identity allowing multiple pots of the same species. Chronological plant journal recording user notes, watering events, flowering, and harvests. Side-by-side growth photo comparison with explicit perspective disclaimers. Quantitative height logging with daily growth rate analysis. Gentle non-guilt garden insights engine. Full offline persistence with schema version 5 idempotent migration.
 
 ---
 
@@ -99,7 +118,7 @@ src/
 - **Bundler & Dev Server:** Vite 5
 - **Styling:** Vanilla CSS with custom nature-inspired design tokens (Moss Greens, Terracotta Clay, Warm Sand)
 - **Icons:** Lucide React
-- **Testing:** Vitest (18 automated tests covering recommendation scoring, shopping generation, task generation, assistant context, and vision honesty)
+- **Testing:** Vitest (131 automated unit and integration tests covering M0–M10 across 15 test suites)
 
 ---
 
@@ -203,7 +222,7 @@ Contributions are warmly welcomed for Hacktoberfest!
 ## 📄 License
 
 Distributed under the **MIT License**. See [`LICENSE`](LICENSE) for details.
-=======
+
 <div align="center">
 
 <img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />

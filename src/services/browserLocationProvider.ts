@@ -83,11 +83,11 @@ export class BrowserLocationProvider implements LocationProvider {
           resolve(location);
         },
         (error) => {
-          if (error.code === error.PERMISSION_DENIED) {
+          if (error.code === 1 || error.code === error.PERMISSION_DENIED) {
             const err = new Error('Location permission was denied. You can select your location manually.');
             (err as any).code = 'denied';
             reject(err);
-          } else if (error.code === error.TIMEOUT) {
+          } else if (error.code === 3 || error.code === error.TIMEOUT) {
             const err = new Error('Location request timed out. Please check your network or try again.');
             (err as any).code = 'timeout';
             reject(err);
