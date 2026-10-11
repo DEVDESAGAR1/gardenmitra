@@ -1,9 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { useGarden } from '../context/GardenContext';
 import { localOllamaVisionProvider } from '../services/localOllamaVisionProvider';
 import { visionProvider } from '../services/localVisionProvider';
 import { DoctorHistoryTab } from './doctor/DoctorHistoryTab';
 import { DoctorFollowUpCard } from './doctor/DoctorFollowUpCard';
+import { TaskAwareImageIntake } from './TaskAwareImageIntake';
 import {
   PlantSymptom,
   PlantPhotoAnalysisResult,
@@ -16,11 +17,9 @@ import {
 import {
   Stethoscope,
   Camera,
-  Upload,
   AlertTriangle,
   CheckCircle,
   HelpCircle,
-  X,
   Sparkles,
   Loader2,
   Cpu,
@@ -85,8 +84,6 @@ export const GardenDoctorView: React.FC = () => {
   const [followUpNotesInput, setFollowUpNotesInput] = useState<string>('');
   const [followUpSuccess, setFollowUpSuccess] = useState<boolean>(false);
 
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
   const symptomsList: { id: PlantSymptom; label: string; desc: string }[] = [
     { id: 'yellow_leaves', label: 'Yellow leaves', desc: 'Lower or upper leaves losing green' },
     { id: 'brown_leaves', label: 'Brown leaves', desc: 'Crispy or dark edges/tips' },
@@ -139,19 +136,6 @@ export const GardenDoctorView: React.FC = () => {
     );
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file && file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = () => {
-        setPhotoUrl(reader.result as string);
-        setAiVisionResult(null);
-        setUserVerified(null);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const selectedGardenPlant = selectedSpace?.plants.find(
     (gp) => gp.plantId === selectedPlantId || gp.instanceId === selectedPlantId
   );
@@ -176,7 +160,18 @@ export const GardenDoctorView: React.FC = () => {
 
   // Execute Contextual Diagnosis
   const handleDiagnose = async (withVisionAI: boolean = false) => {
-    if (!selectedSpace) return;
+    const activeSpace = selectedSpace || spaces[0] || {
+      id: 'default-space',
+      name: 'General Garden Space',
+      type: 'outdoor_ground' as const,
+      size: 'medium' as const,
+      sunlight: 'partial_sun' as const,
+      sunlightZones: [],
+      plants: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
     setIsAnalyzing(true);
     setTaskMessage(null);
     setFollowUpSuccess(false);
@@ -199,7 +194,7 @@ export const GardenDoctorView: React.FC = () => {
           visionRes = await localOllamaVisionProvider.analyzePlantPhoto(photoUrl, {
             plant: selectedGardenPlant || null,
             symptom: selectedSymptom,
-            space: selectedSpace,
+            space: activeSpace,
             environmentalContext
           });
           setAiVisionResult(visionRes);
@@ -209,7 +204,7 @@ export const GardenDoctorView: React.FC = () => {
               id: 'obs-doctor-' + Date.now(),
               photoId: 'photo-doctor',
               timestamp: new Date().toISOString(),
-              spaceId: selectedSpace.id,
+              spaceId: activeSpace.id,
               plantId: selectedGardenPlant?.plantId,
               model: visionRes.modelName || 'local-vision',
               type: 'plant_health',
@@ -430,19 +425,24 @@ export const GardenDoctorView: React.FC = () => {
                 <span style={{ fontSize: '0.85rem', fontWeight: 600 }}>Space:</span>
                 <select
                   value={selectedSpace?.id || ''}
-                  onChange={(e) => selectSpace(e.target.value)}
+                  onChange={(e) => e.target.value && selectSpace(e.target.value)}
                   style={{
                     padding: '0.35rem 0.6rem',
                     borderRadius: 'var(--radius-md)',
                     border: '1px solid var(--color-border-medium)',
                     fontSize: '0.85rem'
                   }}
+                  aria-label="Select garden space for diagnosis"
                 >
-                  {spaces.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} ({s.type})
-                    </option>
-                  ))}
+                  {spaces.length === 0 ? (
+                    <option value="">General Garden Space</option>
+                  ) : (
+                    spaces.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.type})
+                      </option>
+                    ))
+                  )}
                 </select>
               </div>
 
@@ -586,60 +586,21 @@ export const GardenDoctorView: React.FC = () => {
                 Close-up of affected leaf, shoot, or pot drainage line. Photos never leave your device without explicit consent.
               </p>
 
-              {!photoUrl ? (
-                <div
-                  onClick={() => fileInputRef.current?.click()}
-                  style={{
-                    border: '2px dashed var(--color-border-medium)',
-                    borderRadius: 'var(--radius-md)',
-                    backgroundColor: 'var(--color-bg-base)',
-                    padding: '1.75rem 1rem',
-                    textAlign: 'center',
-                    cursor: 'pointer',
-                    marginBottom: '1rem'
-                  }}
-                >
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    accept="image/*"
-                    style={{ display: 'none' }}
-                    aria-label="Upload plant leaf photo for health analysis"
-                  />
-                  <Upload size={28} color="var(--color-text-muted)" style={{ margin: '0 auto 0.4rem' }} />
-                  <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>Tap to select photo</div>
-                  <span style={{ fontSize: '0.725rem', color: 'var(--color-text-subtle)' }}>
-                    Processed locally on device
-                  </span>
-                </div>
-              ) : (
-                <div style={{ position: 'relative', borderRadius: 'var(--radius-md)', overflow: 'hidden', marginBottom: '1rem' }}>
-                  <img
-                    src={photoUrl}
-                    alt="Plant health inspection"
-                    style={{ width: '100%', maxHeight: 180, objectFit: 'cover' }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setPhotoUrl(null);
-                      setAiVisionResult(null);
-                    }}
-                    className="btn btn-secondary btn-sm"
-                    style={{
-                      position: 'absolute',
-                      top: 6,
-                      right: 6,
-                      backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                      color: '#DC2626'
-                    }}
-                  >
-                    <X size={13} />
-                    <span>Remove</span>
-                  </button>
-                </div>
-              )}
+              <TaskAwareImageIntake
+                workflow="garden_doctor"
+                currentPhotoUrl={photoUrl}
+                onPhotoSelected={(dataUrl) => {
+                  setPhotoUrl(dataUrl);
+                  setAiVisionResult(null);
+                  setUserVerified(null);
+                }}
+                onPhotoRemoved={() => {
+                  setPhotoUrl(null);
+                  setAiVisionResult(null);
+                  setUserVerified(null);
+                }}
+                disabled={isAnalyzing}
+              />
 
               {/* Free-text Observation Notes */}
               <div>

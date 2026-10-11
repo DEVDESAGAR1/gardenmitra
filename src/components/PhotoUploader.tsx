@@ -461,7 +461,7 @@ export const PhotoUploader: React.FC = () => {
                     </span>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(200px, 100%), 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
                     {analysisResult.observations.likelySpaceType && (
                       <div style={{ padding: '0.75rem', backgroundColor: 'var(--color-bg-base)', borderRadius: 'var(--radius-sm)' }}>
                         <div style={{ fontSize: '0.72rem', color: 'var(--color-text-subtle)', textTransform: 'uppercase' }}>Likely Space</div>

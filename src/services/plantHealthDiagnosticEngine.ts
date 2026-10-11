@@ -11,6 +11,7 @@ import {
   DiagnosisEvidenceStrength,
   DiagnosisEvidenceItem
 } from '../types';
+import { secureIds } from '../utils/secureId';
 
 export interface DiagnosisParams {
   space: GardenSpace;
@@ -36,7 +37,7 @@ export class PlantHealthDiagnosticEngine {
       visionResult
     } = params;
 
-    const reportId = `diag-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const reportId = secureIds.diagnostic();
     const nowIso = new Date().toISOString();
     const nowMs = Date.now();
 

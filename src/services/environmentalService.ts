@@ -7,6 +7,7 @@ import {
   GardenPlant
 } from '../types';
 import { validateEnvironmentalObservation } from './environmentalValidation';
+import { secureIds } from '../utils/secureId';
 
 export interface ObservationFilterOptions {
   spaceId?: string;
@@ -55,7 +56,7 @@ export class EnvironmentalService {
     }
 
     const observation: EnvironmentalObservation = {
-      id: candidate.id || `env-obs-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      id: candidate.id || secureIds.envObs(),
       spaceId: candidate.spaceId!,
       plantInstanceId: candidate.plantInstanceId,
       type: candidate.type!,
@@ -175,7 +176,7 @@ export class EnvironmentalService {
       return { success: false, error: 'Device must specify at least one supported measurement type.' };
     }
 
-    const id = device.id || `dev-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+    const id = device.id || secureIds.device();
     const newDevice: SensorDevice = {
       id,
       name: device.name.trim(),

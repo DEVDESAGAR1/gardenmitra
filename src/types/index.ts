@@ -446,6 +446,7 @@ export interface ChatMessage {
   timestamp: string;
   suggestedQuestions?: string[];
   isRuleBased?: boolean;
+  imageAttachment?: string;
 }
 
 export type PlantSymptom = 
@@ -1453,6 +1454,38 @@ export interface GardenPerformanceReport {
   historicalWeatherNote: string;
 }
 
+/**
+ * Task-Aware Vision & Plant Identification (Phases 2-5)
+ */
+export interface PlantIdentificationResult {
+  status: 'success' | 'unavailable' | 'error' | 'not_a_plant';
+  providerId: string;
+  modelName?: string;
+  timestamp: string;
+  likelyPlant?: {
+    commonName: string;
+    scientificName?: string;
+    confidenceLevel: 'likely' | 'possible' | 'uncertain';
+    visibleFeatures: string[];
+    careSummary?: string;
+  };
+  alternativePossibilities?: Array<{
+    commonName: string;
+    distinguishingNote: string;
+  }>;
+  isUncertain: boolean;
+  guidance: string;
+  matchedCatalogPlantId?: string;
+  message?: string;
+}
 
-
-
+export interface ImageRelevanceValidationResult {
+  isRelevant: boolean;
+  status: 'valid' | 'irrelevant' | 'poor_quality' | 'uncertain' | 'unavailable';
+  workflow: 'plant_identification' | 'garden_doctor' | 'space_scanning' | 'chatbot';
+  detectedSubject?: string;
+  reason?: string;
+  suggestedAction?: string;
+  providerId: string;
+  modelName?: string;
+}

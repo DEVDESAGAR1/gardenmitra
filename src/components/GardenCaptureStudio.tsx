@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useGarden } from '../context/GardenContext';
 import { useToast } from '../context/ToastContext';
 import { captureGuidanceService } from '../services/captureGuidanceService';
+import { imageValidationService } from '../services/imageValidationService';
 import {
   GardenMediaAsset,
   MultiMediaAnalysisResult,
@@ -129,6 +130,12 @@ export const GardenCaptureStudio: React.FC<GardenCaptureStudioProps> = ({ onClos
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         if (!file.type.startsWith('image/')) {
+          continue;
+        }
+
+        const valRes = await imageValidationService.validateTechnical(file);
+        if (!valRes.isValid) {
+          warning(valRes.errorMessage || 'Invalid photo file.');
           continue;
         }
 

@@ -8,6 +8,7 @@ import {
   CareReminderType,
   GardenTask
 } from '../types';
+import { secureIds } from '../utils/secureId';
 
 /**
  * Deterministic Smart Care & Watering Decision Engine (Milestone 3)
@@ -153,7 +154,7 @@ export class CareEngine {
    */
   createWateringEvent(plantId: string, spaceId: string, note?: string): CareEvent {
     return {
-      id: 'care-water-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+      id: secureIds.care('water'),
       plantId,
       spaceId,
       type: 'watered',
@@ -172,7 +173,7 @@ export class CareEngine {
     note?: string
   ): CareEvent {
     return {
-      id: 'care-soil-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+      id: secureIds.care('soil'),
       plantId,
       spaceId,
       type: 'soil_checked',

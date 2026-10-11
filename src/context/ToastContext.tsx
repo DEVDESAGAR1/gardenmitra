@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useMemo } from 'react';
 import { CheckCircle2, AlertCircle, AlertTriangle, Info, X } from 'lucide-react';
+import { secureIds } from '../utils/secureId';
 
 export type ToastType = 'success' | 'info' | 'warning' | 'error';
 
@@ -30,7 +31,7 @@ export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   }, []);
 
   const showToast = useCallback((message: string, type: ToastType = 'info', duration: number = 4000) => {
-    const id = `toast-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+    const id = secureIds.toast();
     const newToast: ToastItem = { id, type, message, duration };
 
     setToasts((prev) => {

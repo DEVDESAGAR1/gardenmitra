@@ -1,8 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useGarden } from '../context/GardenContext';
 import { SpaceSelector } from './SpaceSelector';
-import { PlantCategory } from '../types';
+import { PlantCategory, PlantIdentificationResult } from '../types';
 import { PLANT_CATALOG } from '../data/plants';
+import { TaskAwareImageIntake } from './TaskAwareImageIntake';
+import { localOllamaVisionProvider } from '../services/localOllamaVisionProvider';
 import {
   Sparkles,
   Sun,
@@ -12,7 +14,12 @@ import {
   Info,
   Search,
   BookOpen,
-  Compass
+  Compass,
+  Camera,
+  Loader2,
+  Leaf,
+  ShieldCheck,
+  ExternalLink
 } from 'lucide-react';
 
 export const PlantRecommendationView: React.FC = () => {
@@ -33,8 +40,31 @@ export const PlantRecommendationView: React.FC = () => {
   const [petSafeOnly, setPetSafeOnly] = useState(false);
   const [indoorOnly, setIndoorOnly] = useState(false);
   const [beginnerOnly, setBeginnerOnly] = useState(false);
-  const [activeMode, setActiveMode] = useState<'recommendations' | 'all_library'>('recommendations');
+  const [activeMode, setActiveMode] = useState<'recommendations' | 'all_library' | 'identify_photo'>('recommendations');
   const [expandedReasonId, setExpandedReasonId] = useState<string | null>(null);
+  const [idPhotoUrl, setIdPhotoUrl] = useState<string | null>(null);
+  const [isIdentifying, setIsIdentifying] = useState<boolean>(false);
+  const [identificationResult, setIdentificationResult] = useState<PlantIdentificationResult | null>(null);
+
+  const handleIdentifyPlant = async () => {
+    if (!idPhotoUrl) return;
+    setIsIdentifying(true);
+    try {
+      const res = await localOllamaVisionProvider.identifyPlant(idPhotoUrl);
+      setIdentificationResult(res);
+    } catch (err: any) {
+      setIdentificationResult({
+        status: 'error',
+        providerId: 'local-ollama-vision',
+        timestamp: new Date().toISOString(),
+        isUncertain: true,
+        guidance: 'Identification request failed or was interrupted.',
+        message: err.message
+      });
+    } finally {
+      setIsIdentifying(false);
+    }
+  };
 
   const categories: { id: PlantCategory | 'all'; label: string }[] = [
     { id: 'all', label: 'All Plants' },
@@ -150,6 +180,16 @@ export const PlantRecommendationView: React.FC = () => {
               <BookOpen size={14} style={{ marginRight: 4 }} />
               Full Library ({filteredLibrary.length})
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveMode('identify_photo')}
+              aria-pressed={activeMode === 'identify_photo'}
+              className={`btn btn-sm ${activeMode === 'identify_photo' ? 'btn-primary' : 'btn-ghost'}`}
+              style={{ borderRadius: 'var(--radius-full)', fontSize: '0.8rem', padding: '0.35rem 0.85rem' }}
+            >
+              <Camera size={14} style={{ marginRight: 4 }} />
+              Identify Plant (Photo)
+            </button>
           </div>
         </div>
       </div>
@@ -157,7 +197,8 @@ export const PlantRecommendationView: React.FC = () => {
       {/* Space Selector toolbar if multi-space */}
       {spaces.length > 1 && <SpaceSelector />}
 
-      {/* Search and Filters Bar */}
+      {/* Search and Filters Bar (visible only in recommendation and library modes) */}
+      {activeMode !== 'identify_photo' && (
       <div
         className="card"
         style={{
@@ -238,6 +279,7 @@ export const PlantRecommendationView: React.FC = () => {
           </label>
         </div>
       </div>
+      )}
 
       {/* Mode 1: Recommendations View */}
       {activeMode === 'recommendations' && (
@@ -648,6 +690,262 @@ export const PlantRecommendationView: React.FC = () => {
           })}
         </div>
       )}
+
+      {/* Mode 3: Plant Identification via Photo Scan */}
+      {activeMode === 'identify_photo' && (
+        <div style={{ maxWidth: 720, margin: '0 auto' }}>
+          <div className="card" style={{ padding: '1.5rem', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', marginBottom: '0.75rem' }}>
+              <div
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 'var(--radius-full)',
+                  backgroundColor: 'var(--color-primary-subtle)',
+                  color: 'var(--color-primary)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}
+              >
+                <Camera size={20} />
+              </div>
+              <div>
+                <h3 style={{ fontSize: '1.15rem', color: 'var(--color-primary-dark)', margin: 0, fontWeight: 700 }}>
+                  Scan & Identify Plant
+                </h3>
+                <span style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)' }}>
+                  Take or upload a photo of leaves, flowers, or fruit. Photos are processed locally on device.
+                </span>
+              </div>
+            </div>
+
+            <TaskAwareImageIntake
+              workflow="plant_identification"
+              currentPhotoUrl={idPhotoUrl}
+              onPhotoSelected={(dataUrl) => {
+                setIdPhotoUrl(dataUrl);
+                setIdentificationResult(null);
+              }}
+              onPhotoRemoved={() => {
+                setIdPhotoUrl(null);
+                setIdentificationResult(null);
+              }}
+              disabled={isIdentifying}
+            />
+
+            {idPhotoUrl && !identificationResult && (
+              <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+                <button
+                  type="button"
+                  onClick={handleIdentifyPlant}
+                  disabled={isIdentifying}
+                  className="btn btn-primary"
+                  style={{ borderRadius: 'var(--radius-full)', padding: '0.65rem 1.75rem', fontSize: '0.95rem' }}
+                >
+                  {isIdentifying ? (
+                    <>
+                      <Loader2 size={18} className="spin" />
+                      <span>Analyzing Botanical Markers...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Leaf size={18} />
+                      <span>Identify This Plant</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Identification Results Card */}
+          {identificationResult && (
+            <div
+              className="card"
+              style={{
+                padding: '1.5rem',
+                border: identificationResult.status === 'success'
+                  ? '1px solid #10B981'
+                  : '1px solid var(--color-border-subtle)',
+                backgroundColor: '#FFFFFF',
+                boxShadow: '0 4px 16px rgba(0,0,0,0.06)'
+              }}
+            >
+              {identificationResult.status === 'success' && identificationResult.likelyPlant && (
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                    <div>
+                      <h3 style={{ fontSize: '1.4rem', color: 'var(--color-primary-dark)', margin: 0, fontWeight: 700 }}>
+                        🌿 {identificationResult.likelyPlant.commonName}
+                      </h3>
+                      {identificationResult.likelyPlant.scientificName && (
+                        <p style={{ fontStyle: 'italic', color: 'var(--color-text-muted)', margin: '0.2rem 0 0' }}>
+                          {identificationResult.likelyPlant.scientificName}
+                        </p>
+                      )}
+                    </div>
+                    <span
+                      style={{
+                        padding: '0.25rem 0.75rem',
+                        borderRadius: 'var(--radius-full)',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        backgroundColor: identificationResult.likelyPlant.confidenceLevel === 'likely'
+                          ? '#DCFCE7'
+                          : identificationResult.likelyPlant.confidenceLevel === 'possible'
+                          ? '#FEF3C7'
+                          : '#F3F4F6',
+                        color: identificationResult.likelyPlant.confidenceLevel === 'likely'
+                          ? '#166534'
+                          : identificationResult.likelyPlant.confidenceLevel === 'possible'
+                          ? '#92400E'
+                          : '#4B5563'
+                      }}
+                    >
+                      {identificationResult.likelyPlant.confidenceLevel === 'likely' ? '● Likely Match' : '○ Possible Match'}
+                    </span>
+                  </div>
+
+                  {/* Supporting Visual Observations */}
+                  {identificationResult.likelyPlant.visibleFeatures && identificationResult.likelyPlant.visibleFeatures.length > 0 && (
+                    <div style={{ marginBottom: '1rem', padding: '0.75rem', backgroundColor: 'var(--color-bg-base)', borderRadius: 'var(--radius-md)' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-main)', display: 'block', marginBottom: '0.35rem' }}>
+                        Observed Botanical Features:
+                      </span>
+                      <ul style={{ margin: 0, paddingLeft: '1.2rem', fontSize: '0.825rem', color: 'var(--color-text-muted)' }}>
+                        {identificationResult.likelyPlant.visibleFeatures.map((feat, idx) => (
+                          <li key={idx} style={{ marginBottom: '0.2rem' }}>{feat}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+
+                  {/* Care Summary */}
+                  {identificationResult.likelyPlant.careSummary && (
+                    <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', marginBottom: '1rem' }}>
+                      <strong>Care guidance:</strong> {identificationResult.likelyPlant.careSummary}
+                    </p>
+                  )}
+
+                  {/* Alternatives */}
+                  {identificationResult.alternativePossibilities && identificationResult.alternativePossibilities.length > 0 && (
+                    <div style={{ marginBottom: '1rem' }}>
+                      <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--color-text-subtle)', display: 'block', marginBottom: '0.35rem' }}>
+                        Alternative possibilities to verify:
+                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                        {identificationResult.alternativePossibilities.map((alt, idx) => (
+                          <div key={idx} style={{ fontSize: '0.8rem', padding: '0.4rem 0.6rem', backgroundColor: '#FAFAFA', borderRadius: '4px' }}>
+                            <strong>{alt.commonName}:</strong> {alt.distinguishingNote}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Transparency guidance */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.75rem', color: 'var(--color-text-subtle)', marginBottom: '1.25rem' }}>
+                    <ShieldCheck size={14} color="#10B981" />
+                    <span>{identificationResult.guidance}</span>
+                  </div>
+
+                  {/* Actions: View in catalog / add to garden */}
+                  <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    {identificationResult.matchedCatalogPlantId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const catPlant = PLANT_CATALOG.find((p) => p.id === identificationResult.matchedCatalogPlantId);
+                          if (catPlant) {
+                            setSelectedPlantForDetail(catPlant);
+                          }
+                        }}
+                        className="btn btn-primary btn-sm"
+                      >
+                        <ExternalLink size={14} />
+                        <span>View Plant Details & Growth Schedule</span>
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIdPhotoUrl(null);
+                        setIdentificationResult(null);
+                      }}
+                      className="btn btn-secondary btn-sm"
+                    >
+                      <Camera size={14} />
+                      <span>Identify Another Plant</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {identificationResult.status === 'not_a_plant' && (
+                <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+                  <AlertTriangle size={36} color="#EA580C" style={{ margin: '0 auto 0.75rem' }} />
+                  <h4 style={{ fontSize: '1.1rem', color: 'var(--color-primary-dark)', marginBottom: '0.4rem' }}>
+                    No Plant Subject Detected
+                  </h4>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', maxWidth: 450, margin: '0 auto 1rem' }}>
+                    {identificationResult.guidance}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIdPhotoUrl(null);
+                      setIdentificationResult(null);
+                    }}
+                    className="btn btn-secondary btn-sm"
+                  >
+                    <span>Try with Another Photo</span>
+                  </button>
+                </div>
+              )}
+
+              {identificationResult.status === 'unavailable' && (
+                <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+                  <Info size={36} color="var(--color-text-subtle)" style={{ margin: '0 auto 0.75rem' }} />
+                  <h4 style={{ fontSize: '1.1rem', color: 'var(--color-primary-dark)', marginBottom: '0.4rem' }}>
+                    Local Vision AI Unavailable
+                  </h4>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', maxWidth: 450, margin: '0 auto 1rem' }}>
+                    {identificationResult.guidance}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setActiveMode('all_library')}
+                    className="btn btn-secondary btn-sm"
+                  >
+                    <span>Browse Curated Plant Library Instead</span>
+                  </button>
+                </div>
+              )}
+
+              {identificationResult.status === 'error' && (
+                <div style={{ textAlign: 'center', padding: '1rem 0' }}>
+                  <AlertTriangle size={36} color="#DC2626" style={{ margin: '0 auto 0.75rem' }} />
+                  <h4 style={{ fontSize: '1.1rem', color: 'var(--color-primary-dark)', marginBottom: '0.4rem' }}>
+                    Scan Could Not Be Completed
+                  </h4>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--color-text-muted)', maxWidth: 450, margin: '0 auto 1rem' }}>
+                    {identificationResult.guidance}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleIdentifyPlant}
+                    className="btn btn-secondary btn-sm"
+                  >
+                    <span>Retry Identification</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
+

@@ -6,6 +6,7 @@ import {
   CareRecommendation,
   AdaptiveCareTask
 } from '../types';
+import { secureIds } from '../utils/secureId';
 
 export class AdaptiveCareEngine {
   /**
@@ -604,8 +605,11 @@ export class AdaptiveCareEngine {
 
     // Map active tasks by key: spaceId + plantInstanceId + category
     const activeTaskMap = new Map<string, AdaptiveCareTask>();
+    // Map completed tasks by key to prevent resurrecting completed tasks as actionable duplicates
+    const completedTaskMap = new Map<string, AdaptiveCareTask>();
 
     updatedTasks.forEach((task) => {
+      const key = `${task.spaceId}_${task.plantInstanceId || 'space'}_${task.category}`;
       if (
         task.status === 'suggested' ||
         task.status === 'planned' ||
@@ -613,14 +617,35 @@ export class AdaptiveCareEngine {
         task.status === 'snoozed' ||
         task.status === 'postponed'
       ) {
-        const key = `${task.spaceId}_${task.plantInstanceId || 'space'}_${task.category}`;
         activeTaskMap.set(key, task);
+      } else if (task.status === 'completed') {
+        const existingCompleted = completedTaskMap.get(key);
+        if (
+          !existingCompleted ||
+          (task.completedAt &&
+            existingCompleted.completedAt &&
+            new Date(task.completedAt).getTime() > new Date(existingCompleted.completedAt).getTime())
+        ) {
+          completedTaskMap.set(key, task);
+        }
       }
     });
 
     recommendations.forEach((rec) => {
       const key = `${rec.spaceId}_${rec.targetPlantInstanceId || 'space'}_${rec.category}`;
       const existing = activeTaskMap.get(key);
+      const existingCompleted = completedTaskMap.get(key);
+
+      // Prevent resurrecting completed tasks as actionable duplicates if completed within the last 24 hours
+      if (existingCompleted) {
+        if (!existingCompleted.completedAt) {
+          return;
+        }
+        const completedTime = new Date(existingCompleted.completedAt).getTime();
+        if (nowMs - completedTime < 24 * 3600 * 1000) {
+          return;
+        }
+      }
 
       // Handle postponed or suppressed recommendations (e.g. rain postponing watering)
       if (rec.isPostponedOrSuppressed) {
@@ -666,7 +691,7 @@ export class AdaptiveCareEngine {
       } else {
         // Create new deduplicated task
         const newTask: AdaptiveCareTask = {
-          id: `task-adaptive-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          id: secureIds.task('adaptive'),
           recommendationId: rec.id,
           plantInstanceId: rec.targetPlantInstanceId,
           plantId: rec.plantId,

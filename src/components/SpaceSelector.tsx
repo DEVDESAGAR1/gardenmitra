@@ -9,9 +9,10 @@ import {
 
 interface SpaceSelectorProps {
   compact?: boolean;
+  extraActions?: React.ReactNode;
 }
 
-export const SpaceSelector: React.FC<SpaceSelectorProps> = ({ compact = false }) => {
+export const SpaceSelector: React.FC<SpaceSelectorProps> = ({ compact = false, extraActions }) => {
   const {
     spaces,
     selectedSpaceId,
@@ -118,8 +119,10 @@ export const SpaceSelector: React.FC<SpaceSelectorProps> = ({ compact = false })
         </div>
       </div>
 
-      {/* Action buttons: Edit current space / Add new space */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+      {/* Action buttons: Extra actions (Reevaluate Care), Edit current space, Add new space */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+        {extraActions}
+
         {selectedSpace && (
           <button
             type="button"

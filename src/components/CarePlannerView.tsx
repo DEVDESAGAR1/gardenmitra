@@ -46,22 +46,46 @@ export const CarePlannerView: React.FC = () => {
     return adaptiveCareTasks.filter((t) => t.spaceId === selectedSpace.id);
   }, [adaptiveCareTasks, selectedSpace]);
 
-  // Tasks filtered by view mode
+  // Distinct filtered lists for each category and tab
+  const actionableTasks = useMemo(() => {
+    return spaceTasks.filter((t) => t.status === 'due' && t.category !== 'inspection');
+  }, [spaceTasks]);
+
+  const inspectionTasks = useMemo(() => {
+    return spaceTasks.filter(
+      (t) => (t.status === 'due' || t.status === 'suggested') && t.category === 'inspection'
+    );
+  }, [spaceTasks]);
+
+  const completedTasks = useMemo(() => {
+    return spaceTasks.filter((t) => t.status === 'completed');
+  }, [spaceTasks]);
+
+  const allActiveTasks = useMemo(() => {
+    return spaceTasks.filter(
+      (t) =>
+        t.status !== 'completed' &&
+        t.status !== 'dismissed' &&
+        (t.status as string) !== 'cancelled' &&
+        t.status !== 'expired'
+    );
+  }, [spaceTasks]);
+
+  // Tasks filtered by active view mode
   const displayedTasks = useMemo(() => {
-    return spaceTasks.filter((t) => {
-      if (filterMode === 'due') {
-        return t.status === 'due' && t.category !== 'inspection';
-      }
-      if (filterMode === 'inspection') {
-        return (t.status === 'due' || t.status === 'suggested') && t.category === 'inspection';
-      }
-      if (filterMode === 'completed') {
-        return t.status === 'completed';
-      }
-      // 'all' mode
-      return t.status !== 'dismissed';
-    });
-  }, [spaceTasks, filterMode]);
+    switch (filterMode) {
+      case 'due':
+        return actionableTasks;
+      case 'inspection':
+        return inspectionTasks;
+      case 'completed':
+        return completedTasks;
+      case 'all':
+        return allActiveTasks;
+      default:
+        return actionableTasks;
+    }
+  }, [filterMode, actionableTasks, inspectionTasks, completedTasks, allActiveTasks]);
 
   // Category Icon helper
   const getCategoryIcon = (category: string) => {
@@ -94,43 +118,38 @@ export const CarePlannerView: React.FC = () => {
 
   return (
     <div style={{ paddingBottom: '3rem' }}>
-      {/* Header bar */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          flexWrap: 'wrap',
-          gap: '1rem',
-          marginBottom: '1.5rem'
-        }}
-      >
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-            <CalendarCheck size={24} color="var(--color-primary)" />
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 700, margin: 0, color: 'var(--color-primary-dark)' }}>
-              Adaptive Care Planner
-            </h1>
-          </div>
-          <p style={{ margin: 0, color: 'var(--color-text-muted)', fontSize: '0.925rem' }}>
-            Evidence-grounded gardening tasks derived from real physical conditions, plant lifecycles, and botanical requirements.
-          </p>
+      {/* Header Title Bar */}
+      <div style={{ marginBottom: '1.25rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+          <CalendarCheck size={26} color="var(--color-primary)" />
+          <h1 style={{ fontSize: '1.75rem', fontWeight: 700, margin: 0, color: 'var(--color-primary-dark)' }}>
+            Adaptive Care Planner
+          </h1>
         </div>
-
-        {/* Action Controls */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
-          {spaces.length > 0 && <SpaceSelector compact={false} />}
-          <button
-            onClick={refreshCarePlanner}
-            className="btn btn-outline"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-            title="Reevaluate recommendations against latest observations"
-          >
-            <RefreshCw size={15} />
-            <span>Reevaluate Care</span>
-          </button>
-        </div>
+        <p style={{ margin: 0, color: 'var(--color-text-muted)', fontSize: '0.925rem', lineHeight: 1.5 }}>
+          Evidence-grounded gardening tasks derived from real physical conditions, plant lifecycles, and botanical requirements.
+        </p>
       </div>
+
+      {/* Space Selector Bar with unified controls (Active Space, Edit Space, Add New Space, Reevaluate Care) */}
+      {spaces.length > 0 && (
+        <SpaceSelector
+          compact={false}
+          extraActions={
+            <button
+              type="button"
+              onClick={refreshCarePlanner}
+              className="btn btn-outline btn-sm"
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', padding: '0.35rem 0.65rem' }}
+              title="Reevaluate recommendations against latest observations"
+              aria-label="Reevaluate care recommendations"
+            >
+              <RefreshCw size={14} />
+              <span>Reevaluate Care</span>
+            </button>
+          }
+        />
+      )}
 
       {/* Milestone 16: Severe Weather Alert Banner */}
       {environmentalContext?.snapshot?.severeWeatherAlert && (
@@ -166,34 +185,63 @@ export const CarePlannerView: React.FC = () => {
         </div>
       )}
 
-      {/* Filter Chips */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+      {/* Filter Tabs */}
+      <div
+        className="care-planner-tabs"
+        role="tablist"
+        aria-label="Care task filter tabs"
+        style={{
+          display: 'flex',
+          gap: '0.5rem',
+          marginBottom: '1.5rem',
+          overflowX: 'auto',
+          paddingBottom: '0.25rem',
+          WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'none'
+        }}
+      >
         <button
+          type="button"
+          role="tab"
+          aria-selected={filterMode === 'due'}
           onClick={() => setFilterMode('due')}
           className={`btn btn-sm ${filterMode === 'due' ? 'btn-primary' : 'btn-outline'}`}
+          style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
         >
           <CheckCircle2 size={14} style={{ marginRight: '0.3rem' }} />
-          Actionable Tasks ({spaceTasks.filter((t) => t.status === 'due' && t.category !== 'inspection').length})
+          Actionable Tasks ({actionableTasks.length})
         </button>
         <button
+          type="button"
+          role="tab"
+          aria-selected={filterMode === 'inspection'}
           onClick={() => setFilterMode('inspection')}
           className={`btn btn-sm ${filterMode === 'inspection' ? 'btn-primary' : 'btn-outline'}`}
+          style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
         >
           <Eye size={14} style={{ marginRight: '0.3rem' }} />
-          Inspect Soil & Health ({spaceTasks.filter((t) => (t.status === 'due' || t.status === 'suggested') && t.category === 'inspection').length})
+          Inspect Soil & Health ({inspectionTasks.length})
         </button>
         <button
+          type="button"
+          role="tab"
+          aria-selected={filterMode === 'completed'}
           onClick={() => setFilterMode('completed')}
           className={`btn btn-sm ${filterMode === 'completed' ? 'btn-primary' : 'btn-outline'}`}
+          style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
         >
           <Check size={14} style={{ marginRight: '0.3rem' }} />
-          Completed ({spaceTasks.filter((t) => t.status === 'completed').length})
+          Completed ({completedTasks.length})
         </button>
         <button
+          type="button"
+          role="tab"
+          aria-selected={filterMode === 'all'}
           onClick={() => setFilterMode('all')}
           className={`btn btn-sm ${filterMode === 'all' ? 'btn-primary' : 'btn-outline'}`}
+          style={{ whiteSpace: 'nowrap', flexShrink: 0 }}
         >
-          All Active ({spaceTasks.filter((t) => t.status !== 'dismissed').length})
+          All Active ({allActiveTasks.length})
         </button>
       </div>
 
@@ -211,8 +259,10 @@ export const CarePlannerView: React.FC = () => {
           <Sparkles size={40} color="var(--color-primary)" style={{ margin: '0 auto 0.75rem auto', opacity: 0.8 }} />
           <h3 style={{ fontSize: '1.25rem', fontWeight: 600, color: 'var(--color-primary-dark)', marginBottom: '0.4rem' }}>
             {filterMode === 'completed'
-              ? 'No Completed Tasks Yet in This Session'
-              : 'Your Garden is Currently in Harmony! 🌱'}
+              ? 'No Completed Tasks Yet'
+              : filterMode === 'inspection'
+              ? 'No Inspections Needed'
+              : "You're all caught up!"}
           </h3>
           <p
             style={{
@@ -224,10 +274,13 @@ export const CarePlannerView: React.FC = () => {
             }}
           >
             {filterMode === 'completed'
-              ? 'Complete scheduled watering, pruning, or soil inspection tasks to see them logged in your persistent garden history.'
-              : 'Available environmental measurements and recorded soil checks show no urgent care is required right now. Over-caring causes more issues than gentle patience.'}
+              ? 'Complete scheduled care tasks to see them logged in your persistent garden history.'
+              : filterMode === 'inspection'
+              ? 'All plants and physical checks are within healthy parameters.'
+              : "There's nothing requiring action right now. Check back when your garden needs care."}
           </p>
           <button
+            type="button"
             onClick={() => setShowTouchGrassModal(true)}
             className="btn btn-terracotta"
             style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}
@@ -272,6 +325,7 @@ export const CarePlannerView: React.FC = () => {
                 }}
               >
                 <div
+                  className="care-task-card-header"
                   style={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -281,9 +335,9 @@ export const CarePlannerView: React.FC = () => {
                     marginBottom: '0.6rem'
                   }}
                 >
-                  <div>
+                  <div style={{ flex: '1 1 240px', minWidth: 0 }}>
                     {/* Badge row */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.35rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap', marginBottom: '0.35rem' }}>
                       <span className="badge badge-neutral" style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.725rem' }}>
                         {getCategoryIcon(task.category)}
                         <span style={{ textTransform: 'capitalize' }}>{task.category}</span>
@@ -347,7 +401,8 @@ export const CarePlannerView: React.FC = () => {
                         fontWeight: 600,
                         margin: '0 0 0.35rem 0',
                         color: isCompleted ? 'var(--color-text-muted)' : 'var(--color-primary-dark)',
-                        textDecoration: isCompleted ? 'line-through' : 'none'
+                        textDecoration: isCompleted ? 'line-through' : 'none',
+                        wordBreak: 'break-word'
                       }}
                     >
                       {task.title}
@@ -356,26 +411,40 @@ export const CarePlannerView: React.FC = () => {
 
                   {/* Task Action Controls */}
                   {!isCompleted && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <div
+                      className="care-task-actions"
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        flexShrink: 0
+                      }}
+                    >
                       <button
+                        type="button"
                         onClick={() => handleOpenCompleteModal(task.id)}
                         className="btn btn-primary btn-sm"
-                        style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                        style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem' }}
+                        aria-label={`Mark task "${task.title}" as complete`}
                       >
                         <Check size={14} />
                         <span>Complete</span>
                       </button>
                       <button
+                        type="button"
                         onClick={() => snoozeAdaptiveCareTask(task.id, 24)}
                         className="btn btn-outline btn-sm"
                         title="Snooze for 24 hours"
+                        aria-label={`Snooze task "${task.title}" for 24 hours`}
                       >
                         <Clock size={14} />
                       </button>
                       <button
+                        type="button"
                         onClick={() => dismissAdaptiveCareTask(task.id, 'Not needed today')}
                         className="btn btn-outline btn-sm"
                         title="Dismiss task"
+                        aria-label={`Dismiss task "${task.title}"`}
                       >
                         <X size={14} />
                       </button>

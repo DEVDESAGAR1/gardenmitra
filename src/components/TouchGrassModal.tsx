@@ -4,11 +4,16 @@ import { useFocusTrap } from '../hooks/useFocusTrap';
 import { X, Sun, Wind, Eye, Sparkles, Sprout } from 'lucide-react';
 
 export const TouchGrassModal: React.FC = () => {
-  const { showTouchGrassModal, setShowTouchGrassModal, profile } = useGarden();
+  const { showTouchGrassModal, setShowTouchGrassModal, setActiveTab, profile } = useGarden();
+
+  const handleClose = () => {
+    setShowTouchGrassModal(false);
+    setActiveTab('today');
+  };
 
   const modalRef = useFocusTrap<HTMLDivElement>({
     isOpen: showTouchGrassModal,
-    onClose: () => setShowTouchGrassModal(false)
+    onClose: handleClose
   });
 
   if (!showTouchGrassModal) return null;
@@ -16,7 +21,7 @@ export const TouchGrassModal: React.FC = () => {
   return (
     <div
       className="modal-overlay"
-      onClick={() => setShowTouchGrassModal(false)}
+      onClick={handleClose}
     >
       <div
         ref={modalRef}
@@ -28,10 +33,10 @@ export const TouchGrassModal: React.FC = () => {
         style={{ textAlign: 'center', maxWidth: 520, padding: '2.5rem 2rem' }}
       >
         <button
-          onClick={() => setShowTouchGrassModal(false)}
+          onClick={handleClose}
           className="btn btn-ghost btn-sm"
           style={{ position: 'absolute', top: 16, right: 16, borderRadius: 'var(--radius-full)' }}
-          aria-label="Close dialog"
+          aria-label="Close dialog and return to Today's Garden"
         >
           <X size={20} />
         </button>
@@ -112,7 +117,7 @@ export const TouchGrassModal: React.FC = () => {
         </div>
 
         <button
-          onClick={() => setShowTouchGrassModal(false)}
+          onClick={handleClose}
           className="btn btn-primary btn-lg"
           style={{ width: '100%', fontSize: '1.05rem', gap: '0.5rem' }}
         >

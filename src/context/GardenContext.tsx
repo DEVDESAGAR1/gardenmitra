@@ -85,6 +85,7 @@ import { gardenMemoryEngine } from '../services/gardenMemoryEngine';
 import { environmentalService } from '../services/environmentalService';
 import { adaptiveCareEngine } from '../services/adaptiveCareEngine';
 import { plantHealthDiagnosticEngine } from '../services/plantHealthDiagnosticEngine';
+import { secureIds } from '../utils/secureId';
 
 export type NavigationTab = 
   | 'home' 
@@ -297,7 +298,8 @@ interface GardenContextType {
   // Checklist & Chat Actions
   toggleTask: (taskId: string) => void;
   toggleShoppingItem: (itemId: string) => void;
-  sendChatMessage: (content: string) => Promise<void>;
+  sendChatMessage: (content: string, imageAttachment?: string) => Promise<void>;
+  clearChatMessages: () => void;
   setShowTouchGrassModal: (show: boolean) => void;
   setSelectedPlantForDetail: (plant: Plant | null) => void;
   resetAll: () => void;
@@ -1168,7 +1170,7 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const createCaptureSession = useCallback((spaceId: string, notes?: string): GardenCaptureSession => {
     const newSession: GardenCaptureSession = {
-      id: `session-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+      id: secureIds.session(),
       spaceId,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -1201,7 +1203,7 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       throw new Error(`Target garden space ${params.spaceId} not found.`);
     }
 
-    const assetId = `media-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const assetId = secureIds.media();
     // Save binary blob to IndexedDB
     await localMediaStorage.saveMediaBlob(assetId, params.fileOrBlob);
 
@@ -1606,16 +1608,47 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   // Context-aware Assistant Chat
   const sendChatMessage = useCallback(
-    async (content: string) => {
+    async (content: string, imageAttachment?: string) => {
       const userMsg: ChatMessage = {
         id: 'usr-' + Date.now(),
         sender: 'user',
         content,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        imageAttachment
       };
 
       setChatMessages((prev) => [...prev, userMsg]);
 
+      // If local Ollama vision/chat model is available, attempt real inference
+      if (modelAvailability.status === 'available') {
+        try {
+          const conversationHistory = [...chatMessages, userMsg].map((m) => ({
+            role: m.sender === 'user' ? ('user' as const) : ('assistant' as const),
+            content: m.content
+          }));
+
+          const ollamaRes = await localOllamaVisionProvider.chatWithModel({
+            messages: conversationHistory,
+            imageAttachment
+          });
+
+          if (ollamaRes.success) {
+            const assistantMsg: ChatMessage = {
+              id: 'bot-' + Date.now(),
+              sender: 'assistant',
+              content: ollamaRes.reply,
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              isRuleBased: false
+            };
+            setChatMessages((prev) => [...prev, assistantMsg]);
+            return;
+          }
+        } catch {
+          // Fall through to offline deterministic assistant
+        }
+      }
+
+      // Offline deterministic assistant provider fallback
       const rawPlants = selectedSpace?.plants.map((gp) => gp.plant) || [];
       const assistantContext = {
         profile,
@@ -1638,8 +1671,12 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
       setChatMessages((prev) => [...prev, reply]);
     },
-    [chatMessages, profile, selectedSpace, spaces, tasks, environmentalContext]
+    [chatMessages, modelAvailability.status, profile, selectedSpace, spaces, tasks, environmentalContext]
   );
+
+  const clearChatMessages = useCallback(() => {
+    setChatMessages([]);
+  }, []);
 
   const resetAll = useCallback(() => {
     localStorage.removeItem(STORAGE_KEY);
@@ -1714,7 +1751,7 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       zone: { name: string; type: 'sunny' | 'partial_shade' | 'shade'; description?: string }
     ): SunlightZone => {
       const newZone: SunlightZone = {
-        id: `sz-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        id: secureIds.spaceZone(),
         spaceId,
         name: zone.name.trim() || 'New Sunlight Zone',
         type: zone.type,
@@ -1773,7 +1810,7 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     (spaceId: string, container: Omit<GardenContainer, 'id' | 'spaceId'>): GardenContainer => {
       const newContainer: GardenContainer = {
         ...container,
-        id: `cnt-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        id: secureIds.container(),
         spaceId
       };
       setGarden((prev) => {
@@ -1833,7 +1870,7 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     (spaceId: string, placement: Omit<PlantPlacement, 'id' | 'spaceId'>): PlantPlacement => {
       const newPlacement: PlantPlacement = {
         ...placement,
-        id: `plm-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        id: secureIds.placement(),
         spaceId
       };
       setGarden((prev) => {
@@ -1895,7 +1932,7 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     (spaceId: string, zone: Omit<SpaceZone, 'id' | 'spaceId'>): SpaceZone => {
       const newZone: SpaceZone = {
         ...zone,
-        id: `zone-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        id: secureIds.zone(),
         spaceId
       };
       setGarden((prev) => {
@@ -1985,7 +2022,7 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
         if (!container && targetZone) {
           const newContainer: GardenContainer = {
-            id: `cnt-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+            id: secureIds.container(),
             spaceId,
             name: `${plant.name} Container`,
             type: plant.containerFriendly ? 'pot' : 'grow_bag',
@@ -2007,7 +2044,7 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         }
 
         newPlacements.push({
-          id: `plm-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+          id: secureIds.placement(),
           spaceId,
           plantId: plant.id,
           plantName: plant.name,
@@ -2095,7 +2132,7 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       data: Omit<SpaceMeasurement, 'id' | 'spaceId' | 'createdAt'>
     ): SpaceMeasurement => {
       const newMeasurement: SpaceMeasurement = {
-        id: `m-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        id: secureIds.model(),
         spaceId,
         name: data.name,
         value: data.value,
@@ -2152,7 +2189,7 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       data: Omit<UserConfirmableObservation, 'id' | 'spaceId' | 'confirmedAt' | 'source'>
     ): UserConfirmableObservation => {
       const newObs: UserConfirmableObservation = {
-        id: `obs-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        id: secureIds.observation(),
         spaceId,
         category: data.category,
         question: data.question,
@@ -2512,33 +2549,36 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   const completeAdaptiveCareTask = useCallback(
     (taskId: string, notes?: string) => {
+      let targetCompletedTask: AdaptiveCareTask | undefined;
+
       setAdaptiveCareTasks((prev) => {
         const { tasks: updatedTasks, completedTask } = adaptiveCareEngine.completeTask(prev, taskId, notes);
-        if (completedTask && completedTask.plantInstanceId && completedTask.spaceId) {
+        targetCompletedTask = completedTask;
+        return updatedTasks;
+      });
+
+      if (targetCompletedTask && (targetCompletedTask as AdaptiveCareTask).plantInstanceId && (targetCompletedTask as AdaptiveCareTask).spaceId) {
+        const completed = targetCompletedTask as AdaptiveCareTask;
+        if (completed.category === 'watering' && completed.plantId) {
+          waterPlant(completed.plantId, notes || 'Completed via Care Planner');
+        } else {
           const actionType: import('../types').PlantJournalEntryType =
-            completedTask.category === 'watering'
-              ? 'watered'
-              : completedTask.category === 'pruning'
+            completed.category === 'pruning'
               ? 'pruned'
-              : completedTask.category === 'feeding'
+              : completed.category === 'feeding'
               ? 'fertilized'
               : 'care_action';
 
           addJournalEntry({
-            plantInstanceId: completedTask.plantInstanceId,
-            plantId: completedTask.plantId || '',
-            spaceId: completedTask.spaceId,
+            plantInstanceId: completed.plantInstanceId || '',
+            plantId: completed.plantId || '',
+            spaceId: completed.spaceId,
             type: actionType,
-            note: notes || completedTask.title,
+            note: notes || completed.title,
             source: 'user'
           });
-
-          if (completedTask.category === 'watering' && completedTask.plantId) {
-            waterPlant(completedTask.plantId, notes || 'Completed via Care Planner');
-          }
         }
-        return updatedTasks;
-      });
+      }
     },
     [addJournalEntry, waterPlant]
   );
@@ -2573,27 +2613,35 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
       symptoms: StructuredSymptomReport;
       visionResult?: PlantPhotoAnalysisResult | null;
     }): ContextualDiagnosisReport => {
-      if (!selectedSpace) {
-        throw new Error('No garden space selected for diagnosis');
-      }
+      const activeSpace = selectedSpace || spaces[0] || {
+        id: 'default-space',
+        name: 'General Garden Space',
+        type: 'outdoor_ground' as const,
+        size: 'medium' as const,
+        sunlight: 'partial_sun' as const,
+        sunlightZones: [],
+        plants: [],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
 
       // Match target plant from selected space plants
       let targetPlant: GardenPlant | Plant | null = null;
       if (params.plantInstanceId) {
         targetPlant =
-          (selectedSpace.plants || []).find(
+          (activeSpace.plants || []).find(
             (p) => p.instanceId === params.plantInstanceId
           ) || null;
       }
       if (!targetPlant && params.plantId) {
         targetPlant =
-          (selectedSpace.plants || []).find((p) => p.plantId === params.plantId) ||
+          (activeSpace.plants || []).find((p) => p.plantId === params.plantId) ||
           PLANT_CATALOG.find((p) => p.id === params.plantId) ||
           null;
       }
 
       return plantHealthDiagnosticEngine.diagnose({
-        space: selectedSpace,
+        space: activeSpace,
         plant: targetPlant,
         symptoms: params.symptoms,
         environmentalObservations,
@@ -2601,13 +2649,13 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         visionResult: params.visionResult
       });
     },
-    [selectedSpace, environmentalObservations, environmentalContext]
+    [selectedSpace, spaces, environmentalObservations, environmentalContext]
   );
 
   const saveDiagnosisRecord = useCallback(
     (report: ContextualDiagnosisReport): DiagnosisRecord => {
       const newRecord: DiagnosisRecord = {
-        id: `rec-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        id: secureIds.record(),
         report,
         createdAt: new Date().toISOString()
       };
@@ -2664,7 +2712,7 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         };
       }
 
-      const taskId = `task-diag-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`;
+      const taskId = secureIds.task('diag');
       const newTask: AdaptiveCareTask = {
         id: taskId,
         spaceId: report.spaceId,
@@ -2802,6 +2850,7 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         toggleTask,
         toggleShoppingItem,
         sendChatMessage,
+        clearChatMessages,
         setShowTouchGrassModal,
         setSelectedPlantForDetail,
         resetAll,

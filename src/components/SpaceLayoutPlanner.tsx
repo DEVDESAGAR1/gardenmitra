@@ -561,7 +561,7 @@ export const SpaceLayoutPlanner: React.FC = () => {
       {showAddContainer && (
         <div className="modal-backdrop" onClick={() => setShowAddContainer(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
-            <h3 style={{ margin: '0 0 1rem' }}>+ Add Pot or Container</h3>
+            <h3 style={{ margin: '0 0 1rem', color: 'var(--color-primary-dark)' }}>+ Add Pot or Container</h3>
             <form onSubmit={handleCreateContainer}>
               <div style={{ marginBottom: '0.85rem' }}>
                 <label htmlFor="planner-container-name" style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem' }}>
@@ -573,7 +573,7 @@ export const SpaceLayoutPlanner: React.FC = () => {
                   placeholder="e.g. Tomato Terracotta Pot"
                   value={containerName}
                   onChange={(e) => setContainerName(e.target.value)}
-                  className="input-field"
+                  className="form-input"
                   required
                 />
               </div>
@@ -586,7 +586,7 @@ export const SpaceLayoutPlanner: React.FC = () => {
                   id="planner-container-type"
                   value={containerType}
                   onChange={(e) => setContainerType(e.target.value as any)}
-                  className="input-field"
+                  className="form-select"
                 >
                   <option value="pot">Potted Planter (Standard)</option>
                   <option value="grow_bag">Breathable Grow Bag</option>
@@ -600,23 +600,42 @@ export const SpaceLayoutPlanner: React.FC = () => {
                 <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem' }}>
                   Size &amp; Capacity
                 </label>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  {(['small', 'medium', 'large'] as const).map((sz) => (
-                    <button
-                      key={sz}
-                      type="button"
-                      onClick={() => setContainerSize(sz)}
-                      className="btn btn-sm"
-                      style={{
-                        flex: 1,
-                        textTransform: 'capitalize',
-                        backgroundColor: containerSize === sz ? 'var(--color-primary)' : 'var(--color-bg-base)',
-                        color: containerSize === sz ? '#FFFFFF' : 'var(--color-text-main)'
-                      }}
-                    >
-                      {sz}
-                    </button>
-                  ))}
+                <div
+                  role="group"
+                  aria-label="Container size selection"
+                  style={{
+                    display: 'flex',
+                    gap: '0.4rem',
+                    backgroundColor: 'var(--color-bg-base)',
+                    padding: '0.25rem',
+                    borderRadius: 'var(--radius-md)',
+                    border: '1px solid var(--color-border-medium)'
+                  }}
+                >
+                  {(['small', 'medium', 'large'] as const).map((sz) => {
+                    const isSelected = containerSize === sz;
+                    const sizeLabel = sz === 'small' ? 'Small (4–6")' : sz === 'medium' ? 'Medium (8–10")' : 'Large (12"+)';
+                    return (
+                      <button
+                        key={sz}
+                        type="button"
+                        onClick={() => setContainerSize(sz)}
+                        aria-pressed={isSelected}
+                        className={`btn btn-sm ${isSelected ? 'btn-primary' : 'btn-ghost'}`}
+                        style={{
+                          flex: 1,
+                          fontSize: '0.8rem',
+                          padding: '0.45rem 0.5rem',
+                          borderRadius: 'var(--radius-sm)',
+                          backgroundColor: isSelected ? 'var(--color-primary)' : 'transparent',
+                          color: isSelected ? '#FFFFFF' : 'var(--color-text-main)',
+                          boxShadow: isSelected ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'
+                        }}
+                      >
+                        {sizeLabel}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
 
@@ -627,7 +646,8 @@ export const SpaceLayoutPlanner: React.FC = () => {
                 <select
                   value={containerZoneId}
                   onChange={(e) => setContainerZoneId(e.target.value)}
-                  className="input-field"
+                  className="form-select"
+                  aria-label="Select zone for container"
                 >
                   <option value="">-- No specific zone yet --</option>
                   {zones
@@ -640,7 +660,7 @@ export const SpaceLayoutPlanner: React.FC = () => {
                 </select>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.6rem' }}>
                 <button
                   type="button"
                   onClick={() => setShowAddContainer(false)}
@@ -673,7 +693,7 @@ export const SpaceLayoutPlanner: React.FC = () => {
                   placeholder="e.g. South Railing, Wall Shelf"
                   value={zoneName}
                   onChange={(e) => setZoneName(e.target.value)}
-                  className="input-field"
+                  className="form-input"
                   required
                 />
               </div>
@@ -686,7 +706,7 @@ export const SpaceLayoutPlanner: React.FC = () => {
                   id="planner-zone-type"
                   value={zoneType}
                   onChange={(e) => setZoneType(e.target.value as any)}
-                  className="input-field"
+                  className="form-select"
                 >
                   <option value="sunny_area">☀️ Sunny Area (Direct light)</option>
                   <option value="shaded_area">🌤️ Shaded / Filtered Light Area</option>
@@ -699,7 +719,7 @@ export const SpaceLayoutPlanner: React.FC = () => {
                 </select>
               </div>
 
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.6rem' }}>
                 <button
                   type="button"
                   onClick={() => setShowAddZone(false)}
@@ -720,7 +740,7 @@ export const SpaceLayoutPlanner: React.FC = () => {
       {showAssignPlant && (
         <div className="modal-backdrop" onClick={() => setShowAssignPlant(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 440 }}>
-            <h3 style={{ margin: '0 0 1rem' }}>Assign Plant to Layout</h3>
+            <h3 style={{ margin: '0 0 1rem', color: 'var(--color-primary-dark)' }}>Assign Plant to Layout</h3>
             <form onSubmit={handlePlacePlant}>
               <div style={{ marginBottom: '0.85rem' }}>
                 <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem' }}>
@@ -729,7 +749,8 @@ export const SpaceLayoutPlanner: React.FC = () => {
                 <select
                   value={selectedPlantId}
                   onChange={(e) => setSelectedPlantId(e.target.value)}
-                  className="input-field"
+                  className="form-select"
+                  aria-label="Select plant to assign"
                   required
                 >
                   <option value="">-- Choose plant --</option>
@@ -748,7 +769,8 @@ export const SpaceLayoutPlanner: React.FC = () => {
                 <select
                   value={placementContainerId}
                   onChange={(e) => setPlacementContainerId(e.target.value)}
-                  className="input-field"
+                  className="form-select"
+                  aria-label="Assign to container"
                 >
                   <option value="">-- Direct Zone Placement (No container) --</option>
                   {containers.map((c) => (
@@ -766,7 +788,8 @@ export const SpaceLayoutPlanner: React.FC = () => {
                 <select
                   value={placementZoneId}
                   onChange={(e) => setPlacementZoneId(e.target.value)}
-                  className="input-field"
+                  className="form-select"
+                  aria-label="Select zone"
                 >
                   <option value="">-- Auto-infer from container --</option>
                   {zones

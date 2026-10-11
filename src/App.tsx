@@ -11,6 +11,7 @@ import { MyGardenDashboard } from './components/MyGardenDashboard';
 import { PlantDetailModal } from './components/PlantDetailModal';
 import { TouchGrassModal } from './components/TouchGrassModal';
 import { SpaceModal } from './components/SpaceModal';
+import { FloatingAssistantWidget } from './components/FloatingAssistantWidget';
 
 // Route-level code splitting for secondary views (FIND-PERF-01)
 const GardenSetupWizard = lazy(() =>
@@ -107,7 +108,8 @@ const AppContent: React.FC = () => {
       </main>
       <Footer />
 
-      {/* Global Modals */}
+      {/* Global Modals & Floating Assistant */}
+      <FloatingAssistantWidget />
       <PlantDetailModal
         plant={selectedPlantForDetail}
         onClose={() => setSelectedPlantForDetail(null)}

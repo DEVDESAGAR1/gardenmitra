@@ -14,6 +14,7 @@ describe('Milestone 19.2: Form & Filter Accessibility (FIND-A11Y-03, FIND-A11Y-0
 
     const getAriaPressed = (catId: string) => selectedCategory === catId;
 
+    expect(categories.length).toBe(4);
     expect(getAriaPressed('all')).toBe(true);
     expect(getAriaPressed('vegetables')).toBe(false);
 

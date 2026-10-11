@@ -7,6 +7,7 @@ import {
   PlantLifecycleStage,
   PlantJournalEntryType
 } from '../types';
+import { secureIds } from '../utils/secureId';
 
 export class GardenMemoryEngine {
   /**
@@ -58,7 +59,7 @@ export class GardenMemoryEngine {
   }): PlantJournalEntry {
     const now = new Date().toISOString();
     return {
-      id: `journal-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+      id: secureIds.journal(),
       plantInstanceId: params.plantInstanceId,
       plantId: params.plantId,
       spaceId: params.spaceId,

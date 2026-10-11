@@ -10,10 +10,13 @@ import {
   PlantPhotoAnalysisResult,
   ModelAvailabilityStatus,
   EnvironmentalContext,
-  MultiMediaAnalysisResult
+  MultiMediaAnalysisResult,
+  PlantIdentificationResult,
+  ImageRelevanceValidationResult
 } from '../types';
 import { VisionProvider } from './types';
 import { LocalVisionProvider } from './localVisionProvider';
+import { PLANT_CATALOG } from '../data/plants';
 
 const STORAGE_OLLAMA_URL = 'gardenmitra_ollama_url';
 const STORAGE_OLLAMA_MODEL = 'gardenmitra_ollama_model';
@@ -560,6 +563,308 @@ CRITICAL RULES:
   ): Promise<PlantHealthGuidance> {
     return this.fallbackProvider.analyzePlantHealth(photoDataUrl, symptom);
   }
+
+  /**
+   * Task-aware image relevance validation (Phase 2 & 5)
+   * Verifies that the uploaded photo matches the intended workflow before scanning.
+   */
+  async validateImageRelevance(
+    photoDataUrl: string,
+    workflow: 'plant_identification' | 'garden_doctor' | 'space_scanning' | 'chatbot'
+  ): Promise<ImageRelevanceValidationResult> {
+    const { baseUrl, model } = this.getConfig();
+    const availability = await this.checkAvailability();
+
+    if (availability.status !== 'available') {
+      return {
+        isRelevant: true,
+        status: 'unavailable',
+        workflow,
+        detectedSubject: 'Local AI offline',
+        reason: 'Local vision model is not currently running.',
+        suggestedAction: 'You can proceed with standard photo scan or educational guide.',
+        providerId: this.id,
+        modelName: model
+      };
+    }
+
+    const prompt = `You are an image classifier for GardenMitra gardening application.
+Inspect this photo and determine whether it is relevant to the target workflow: "${workflow}".
+
+WORKFLOW RELEVANCE CRITERIA:
+- "plant_identification": Must show a plant, leaf, flower, fruit, seedling, stem, or tree. Reject photos of cars, electronics, pets, food dishes, or selfies without plants.
+- "garden_doctor": Must show a plant or garden subject to diagnose (do NOT reject simply because a person's hand or face is holding/inspecting the leaf).
+- "space_scanning": Must show an actual garden, balcony, terrace, patio, growing area, window sill, or arrangement of pots. Reject unrelated indoor rooms, selfies, cars, or food.
+- "chatbot": Any photo related to plants, gardening, or a question.
+
+Return ONLY strict JSON with NO markdown backticks:
+{
+  "isRelevant": boolean,
+  "detectedSubject": string,
+  "reason": string,
+  "suggestedAction": string
+}`;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 15000);
+
+    try {
+      const response = await fetch(`${baseUrl}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          prompt,
+          images: [this.cleanBase64(photoDataUrl)],
+          stream: false,
+          format: 'json'
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        throw new Error(`Ollama returned status ${response.status}`);
+      }
+
+      const resData = await response.json();
+      const rawText = resData.response?.trim() || '{}';
+      let parsed: any;
+      try {
+        parsed = JSON.parse(rawText);
+      } catch {
+        const cleaned = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+        parsed = JSON.parse(cleaned);
+      }
+
+      const isRelevant = parsed.isRelevant !== false;
+      return {
+        isRelevant,
+        status: isRelevant ? 'valid' : 'irrelevant',
+        workflow,
+        detectedSubject: parsed.detectedSubject || 'Observed subject',
+        reason: parsed.reason || (isRelevant ? 'Photo appears suitable for this task.' : 'Photo does not appear to show the required subject.'),
+        suggestedAction: parsed.suggestedAction || (isRelevant ? 'Continue scan' : 'Please retake or upload an appropriate photo.'),
+        providerId: this.id,
+        modelName: model
+      };
+    } catch {
+      clearTimeout(timeout);
+      return {
+        isRelevant: true,
+        status: 'unavailable',
+        workflow,
+        detectedSubject: 'Validation interrupted',
+        reason: 'Local AI validation timed out or could not be reached.',
+        suggestedAction: 'Proceeding with standard analysis.',
+        providerId: this.id,
+        modelName: model
+      };
+    }
+  }
+
+  /**
+   * Plant Identification Workflow (Phases 4 & 5)
+   * Identifies botanical subject with uncertainty disclosure and links to catalog.
+   */
+  async identifyPlant(photoDataUrl: string): Promise<PlantIdentificationResult> {
+    const { baseUrl, model } = this.getConfig();
+    const timestamp = new Date().toISOString();
+
+    const availability = await this.checkAvailability();
+    if (availability.status !== 'available') {
+      return {
+        status: 'unavailable',
+        providerId: this.id,
+        modelName: model,
+        timestamp,
+        isUncertain: true,
+        guidance: 'Local vision model is not currently running. Connect Ollama with a vision model (e.g. gemma3:latest) to identify plants on-device.',
+        message: availability.message
+      };
+    }
+
+    const prompt = `You are GardenMitra Botanical Identifier.
+Examine this photograph carefully to identify the plant species.
+
+STRICT ACCURACY RULES:
+- If this photo does NOT show a plant, tree, flower, leaf, or fruit, return "isPlant": false.
+- Never invent species names or express false certainty.
+- Choose confidenceLevel as "likely" only if key botanical markers are distinct, otherwise "possible" or "uncertain".
+- Return ONLY strict JSON with NO markdown backticks:
+{
+  "isPlant": boolean,
+  "commonName": string,
+  "scientificName": string,
+  "confidenceLevel": "likely" | "possible" | "uncertain",
+  "visibleFeatures": [string],
+  "alternatives": [
+    { "commonName": string, "distinguishingNote": string }
+  ],
+  "careSummary": string
+}`;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 25000);
+
+    try {
+      const response = await fetch(`${baseUrl}/api/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          prompt,
+          images: [this.cleanBase64(photoDataUrl)],
+          stream: false,
+          format: 'json'
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        throw new Error(`Ollama returned status ${response.status}`);
+      }
+
+      const resData = await response.json();
+      const rawText = resData.response?.trim() || '{}';
+      let parsed: any;
+      try {
+        parsed = JSON.parse(rawText);
+      } catch {
+        const cleaned = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+        parsed = JSON.parse(cleaned);
+      }
+
+      if (parsed.isPlant === false) {
+        return {
+          status: 'not_a_plant',
+          providerId: this.id,
+          modelName: model,
+          timestamp,
+          isUncertain: true,
+          guidance: 'We could not detect a plant, leaf, or flower in this photo. Please photograph a plant subject.',
+          message: 'No botanical subject detected.'
+        };
+      }
+
+      // Match against PLANT_CATALOG
+      const commonQuery = (parsed.commonName || '').toLowerCase().trim();
+      const scientificQuery = (parsed.scientificName || '').toLowerCase().trim();
+      const matchedPlant = PLANT_CATALOG.find((p) => {
+        const nameMatch = commonQuery && (p.name.toLowerCase().includes(commonQuery) || commonQuery.includes(p.name.toLowerCase()));
+        const sciMatch = scientificQuery && !!p.scientificName && p.scientificName.toLowerCase().includes(scientificQuery);
+        return nameMatch || sciMatch;
+      });
+
+      const confidence = parsed.confidenceLevel === 'likely' ? 'likely' : parsed.confidenceLevel === 'possible' ? 'possible' : 'uncertain';
+
+      return {
+        status: 'success',
+        providerId: this.id,
+        modelName: model,
+        timestamp,
+        likelyPlant: {
+          commonName: parsed.commonName || 'Unidentified Plant',
+          scientificName: parsed.scientificName || undefined,
+          confidenceLevel: confidence,
+          visibleFeatures: Array.isArray(parsed.visibleFeatures) ? parsed.visibleFeatures : ['Distinctive foliage visible in photo'],
+          careSummary: parsed.careSummary || matchedPlant?.wateringText || 'Ensure moderate sunlight and check soil moisture with finger test.'
+        },
+        alternativePossibilities: Array.isArray(parsed.alternatives) ? parsed.alternatives : [],
+        isUncertain: confidence !== 'likely',
+        guidance: confidence === 'likely'
+          ? 'Likely identification based on visible botanical markers. Compare leaf patterns with your plant.'
+          : 'Visual estimate only. Examine flower structure or leaf veins to verify against similar plants.',
+        matchedCatalogPlantId: matchedPlant?.id,
+        message: 'On-device plant identification complete.'
+      };
+    } catch (err: any) {
+      clearTimeout(timeout);
+      return {
+        status: 'error',
+        providerId: this.id,
+        modelName: model,
+        timestamp,
+        isUncertain: true,
+        guidance: 'Identification request timed out or local model was interrupted. Retrying with a smaller photo may help.',
+        message: err.message || 'Vision model error'
+      };
+    }
+  }
+
+  /**
+   * Chat conversation with local Ollama model (supporting optional image attachments)
+   */
+  async chatWithModel(params: {
+    messages: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>;
+    imageAttachment?: string | null;
+  }): Promise<{ success: boolean; reply: string; modelName: string; isVisionSupported?: boolean }> {
+    const { baseUrl, model } = this.getConfig();
+
+    const availability = await this.checkAvailability();
+    if (availability.status !== 'available') {
+      return {
+        success: false,
+        reply: `Local AI is currently offline at ${baseUrl}. You can continue asking questions using the offline assistant.`,
+        modelName: model
+      };
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
+    try {
+      const formattedMessages = params.messages.map((m, idx) => {
+        const isLastUser = idx === params.messages.length - 1 && m.role === 'user';
+        if (isLastUser && params.imageAttachment) {
+          return {
+            role: m.role,
+            content: m.content,
+            images: [this.cleanBase64(params.imageAttachment)]
+          };
+        }
+        return {
+          role: m.role,
+          content: m.content
+        };
+      });
+
+      const response = await fetch(`${baseUrl}/api/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model,
+          messages: formattedMessages,
+          stream: false
+        }),
+        signal: controller.signal
+      });
+      clearTimeout(timeout);
+
+      if (!response.ok) {
+        throw new Error(`Ollama returned status ${response.status}`);
+      }
+
+      const data = await response.json();
+      const reply = data.message?.content?.trim() || 'I could not generate a response.';
+
+      return {
+        success: true,
+        reply,
+        modelName: model,
+        isVisionSupported: !!params.imageAttachment
+      };
+    } catch (err: any) {
+      clearTimeout(timeout);
+      return {
+        success: false,
+        reply: `Local model request failed: ${err.message || 'Connection lost'}.`,
+        modelName: model
+      };
+    }
+  }
 }
 
 export const localOllamaVisionProvider = new LocalOllamaVisionProvider();
+

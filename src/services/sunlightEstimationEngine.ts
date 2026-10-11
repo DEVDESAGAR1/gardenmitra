@@ -11,6 +11,7 @@ import {
   SpaceType
 } from '../types';
 import { localSunPositionProvider } from './localSunPositionProvider';
+import { secureIds } from '../utils/secureId';
 
 /**
  * Deterministic Sunlight Estimation Engine (Milestone 5)
@@ -217,7 +218,7 @@ export class SunlightEstimationEngine {
     location?: LocationInfo
   ): SunlightProfile {
     const newObs: SunlightObservation = {
-      id: 'obs-sun-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6),
+      id: secureIds.sunObs(),
       spaceId: observation.spaceId,
       timeOfDay: observation.timeOfDay,
       condition: observation.condition,
