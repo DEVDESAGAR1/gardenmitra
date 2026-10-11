@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { useGarden } from '../context/GardenContext';
+import { useToast } from '../context/ToastContext';
 import { PhotoUploader } from './PhotoUploader';
 import { WeatherWidget } from './WeatherWidget';
 import { SpaceSelector } from './SpaceSelector';
 import { SunlightIntelligenceCard } from './SunlightIntelligenceCard';
-import { SpaceLayoutPlanner } from './SpaceLayoutPlanner';
+const SpaceLayoutPlanner = lazy(() => import('./SpaceLayoutPlanner').then((m) => ({ default: m.SpaceLayoutPlanner })));
 import { careEngine } from '../services/careEngine';
 import {
   MapPin,
@@ -51,6 +52,8 @@ export const MyGardenDashboard: React.FC = () => {
     checkSoil,
     environmentalContext
   } = useGarden();
+
+  const { success, info } = useToast();
 
   const [expandedTimelineId, setExpandedTimelineId] = useState<string | null>(null);
   const [activeSoilPromptId, setActiveSoilPromptId] = useState<string | null>(null);
@@ -545,7 +548,11 @@ export const MyGardenDashboard: React.FC = () => {
                           type="button"
                           onClick={() => {
                             const res = waterPlant(plant.id);
-                            alert(res.message);
+                            if (res.success) {
+                              success(res.message);
+                            } else {
+                              info(res.message);
+                            }
                           }}
                           className="btn btn-secondary btn-sm"
                           style={{
@@ -602,7 +609,7 @@ export const MyGardenDashboard: React.FC = () => {
                               onClick={() => {
                                 checkSoil(plant.id, 'dry');
                                 setActiveSoilPromptId(null);
-                                alert(`Recorded: Soil was dry. Water ${plant.name} slowly at the base!`);
+                                info(`Recorded: Soil was dry. Water ${plant.name} slowly at the base!`);
                               }}
                               className="btn btn-secondary btn-sm"
                               style={{ fontSize: '0.72rem', padding: '0.2rem 0.4rem', backgroundColor: '#FEF3C7' }}
@@ -614,7 +621,7 @@ export const MyGardenDashboard: React.FC = () => {
                               onClick={() => {
                                 checkSoil(plant.id, 'moist');
                                 setActiveSoilPromptId(null);
-                                alert(`Recorded: Soil still moist. Wait before watering!`);
+                                info(`Recorded: Soil still moist. Wait before watering!`);
                               }}
                               className="btn btn-secondary btn-sm"
                               style={{ fontSize: '0.72rem', padding: '0.2rem 0.4rem', backgroundColor: '#E0F2FE' }}
@@ -737,7 +744,9 @@ export const MyGardenDashboard: React.FC = () => {
       {/* 7. Space & Layout Optimization Planner (Milestone 6) */}
       {selectedSpace && (
         <div id="space-layout-planner-section" style={{ marginTop: '2.5rem' }}>
-          <SpaceLayoutPlanner />
+          <Suspense fallback={<div style={{ padding: '2rem', textAlign: 'center', color: 'var(--color-text-subtle)' }}>Loading space layout planner...</div>}>
+            <SpaceLayoutPlanner />
+          </Suspense>
         </div>
       )}
 

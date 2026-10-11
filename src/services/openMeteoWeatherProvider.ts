@@ -3,7 +3,8 @@ import {
   WeatherSnapshot,
   WeatherForecast,
   DailyWeatherForecast,
-  EnvironmentalContext
+  EnvironmentalContext,
+  SevereWeatherAlert
 } from '../types';
 import { WeatherProvider } from './types';
 
@@ -90,6 +91,94 @@ export function interpretWmoCode(code: number | null | undefined): string {
     default:
       return 'Scattered clouds';
   }
+}
+
+/**
+ * Milestone 16: Severe Weather Evaluation
+ * Identifies high-risk environmental conditions for gardens
+ */
+export function evaluateSevereWeather(snapshot: {
+  temperatureC: number;
+  maxTemperatureC: number;
+  minTemperatureC: number;
+  apparentTemperatureC?: number;
+  windSpeedKmh: number;
+  precipitationProbabilityPercent: number;
+  forecastRainfallMm?: number;
+  conditionText: string;
+  wmoCode?: number;
+}): SevereWeatherAlert | undefined {
+  // 1. Extreme Heatwave: maxTemp >= 40°C or apparentTemp >= 42°C
+  if (snapshot.maxTemperatureC >= 40 || (snapshot.apparentTemperatureC !== undefined && snapshot.apparentTemperatureC >= 42)) {
+    return {
+      id: `alert-heat-${Date.now()}`,
+      type: 'heatwave',
+      severity: 'alert',
+      headline: 'Severe Heatwave Alert',
+      description: `Extreme temperatures reaching ${snapshot.maxTemperatureC}°C (Feels like ${snapshot.apparentTemperatureC || snapshot.maxTemperatureC}°C). High risk of moisture stress and leaf scorch.`,
+      instructions: 'Move sensitive container plants into partial shade. Mulch soil to prevent rapid evaporation, and do not prune or apply concentrated fertilizer during heat spikes.',
+      recommendedAction: 'Provide afternoon shade, maintain root hydration, and avoid midday leaf wetting.',
+      validFrom: new Date().toISOString()
+    };
+  }
+
+  // 2. Freezing / Frost: minTemp <= 2°C or temp <= 2°C
+  if (snapshot.minTemperatureC <= 2 || snapshot.temperatureC <= 2) {
+    return {
+      id: `alert-frost-${Date.now()}`,
+      type: 'frost',
+      severity: 'alert',
+      headline: 'Frost & Near-Freeze Warning',
+      description: `Temperatures dropping near freezing point (${snapshot.minTemperatureC}°C). Tropical, subtropical, and warm-season plants risk cell damage.`,
+      instructions: 'Move tender pots indoors or under cover. Cover outdoor beds with horticultural fleece or frost cloth before sundown.',
+      recommendedAction: 'Protect frost-sensitive herbs and tropical foliage immediately.',
+      validFrom: new Date().toISOString()
+    };
+  }
+
+  // 3. Heavy Rain / Cloudburst: forecastRainfall >= 25mm or (precipitationProbability >= 80% and forecastRainfall >= 15mm)
+  if ((snapshot.forecastRainfallMm !== undefined && snapshot.forecastRainfallMm >= 25) || (snapshot.precipitationProbabilityPercent >= 80 && (snapshot.forecastRainfallMm ?? 0) >= 15)) {
+    return {
+      id: `alert-rain-${Date.now()}`,
+      type: 'heavy_rain',
+      severity: 'warning',
+      headline: 'Heavy Rainfall Warning',
+      description: `Significant precipitation forecast (~${snapshot.forecastRainfallMm}mm). Risk of waterlogging in exposed containers.`,
+      instructions: 'Ensure pot drainage holes are unobstructed. Move vulnerable seedlings under shelter to prevent physical rain damage.',
+      recommendedAction: 'Pause all manual watering and verify pot drainage.',
+      validFrom: new Date().toISOString()
+    };
+  }
+
+  // 4. High Winds: windSpeed >= 38 km/h
+  if (snapshot.windSpeedKmh >= 38) {
+    return {
+      id: `alert-wind-${Date.now()}`,
+      type: 'high_winds',
+      severity: 'warning',
+      headline: 'High Winds Advisory',
+      description: `Gusty winds of ${snapshot.windSpeedKmh} km/h expected. Tall plants, hanging pots, and lightweight containers risk toppling.`,
+      instructions: 'Stake tall fruiting plants (tomatoes, chillies). Take down hanging baskets and place lightweight containers against a sheltered wall.',
+      recommendedAction: 'Stake tall stems and shelter balcony edge containers.',
+      validFrom: new Date().toISOString()
+    };
+  }
+
+  // 5. Thunderstorm: WMO 95, 96, 99
+  if (snapshot.wmoCode !== undefined && [95, 96, 99].includes(snapshot.wmoCode)) {
+    return {
+      id: `alert-storm-${Date.now()}`,
+      type: 'storm',
+      severity: 'warning',
+      headline: 'Thunderstorm Warning',
+      description: 'Thunderstorms with possible hail or sudden wind squalls in the area.',
+      instructions: 'Shelter fragile plants from hail and sudden wind blasts.',
+      recommendedAction: 'Inspect outdoor setup and bring fragile seedlings under an awning.',
+      validFrom: new Date().toISOString()
+    };
+  }
+
+  return undefined;
 }
 
 interface CachedWeatherPayload {
@@ -206,19 +295,63 @@ export class OpenMeteoWeatherProvider implements WeatherProvider {
       const currentWmo = currentData.weather_code ?? 0;
       const currentCondition = interpretWmoCode(currentWmo);
 
+      const apparentTemp = currentData.apparent_temperature !== undefined
+        ? Math.round(currentData.apparent_temperature * 10) / 10
+        : currentData.temperature_2m !== undefined
+        ? Math.round(currentData.temperature_2m * 10) / 10
+        : undefined;
+
+      const observedRain = currentData.rain !== undefined
+        ? Math.round(currentData.rain * 10) / 10
+        : currentData.precipitation !== undefined
+        ? Math.round(currentData.precipitation * 10) / 10
+        : 0;
+
+      const forecastRain = dailyData.precipitation_sum?.[0] !== undefined
+        ? Math.round(dailyData.precipitation_sum[0] * 10) / 10
+        : 0;
+
+      const tempC = Math.round((currentData.temperature_2m ?? 24) * 10) / 10;
+      const minTempC = Math.round(((dailyData.temperature_2m_min?.[0] ?? (currentData.temperature_2m ?? 20) - 4)) * 10) / 10;
+      const maxTempC = Math.round(((dailyData.temperature_2m_max?.[0] ?? (currentData.temperature_2m ?? 25) + 4)) * 10) / 10;
+      const precipProb = Math.round(dailyData.precipitation_probability_max?.[0] ?? 0);
+      const windKmh = Math.round((currentData.wind_speed_10m ?? 8) * 10) / 10;
+      const nowIso = new Date().toISOString();
+      const validFrom = currentData.time || nowIso;
+      const validUntil = dailyData.time?.[0] ? `${dailyData.time[0]}T23:59:59` : undefined;
+
+      const severeAlert = evaluateSevereWeather({
+        temperatureC: tempC,
+        maxTemperatureC: maxTempC,
+        minTemperatureC: minTempC,
+        apparentTemperatureC: apparentTemp,
+        windSpeedKmh: windKmh,
+        precipitationProbabilityPercent: precipProb,
+        forecastRainfallMm: forecastRain,
+        conditionText: currentCondition,
+        wmoCode: currentWmo
+      });
+
       // Build normalized WeatherSnapshot
       const currentSnapshot: WeatherSnapshot = {
-        temperatureC: Math.round((currentData.temperature_2m ?? 24) * 10) / 10,
-        minTemperatureC: Math.round(((dailyData.temperature_2m_min?.[0] ?? (currentData.temperature_2m ?? 20) - 4)) * 10) / 10,
-        maxTemperatureC: Math.round(((dailyData.temperature_2m_max?.[0] ?? (currentData.temperature_2m ?? 25) + 4)) * 10) / 10,
+        temperatureC: tempC,
+        minTemperatureC: minTempC,
+        maxTemperatureC: maxTempC,
         humidityPercent: Math.round(currentData.relative_humidity_2m ?? 50),
-        precipitationProbabilityPercent: Math.round(dailyData.precipitation_probability_max?.[0] ?? 0),
-        rainfallMm: Math.round((currentData.rain ?? currentData.precipitation ?? 0) * 10) / 10,
-        windSpeedKmh: Math.round((currentData.wind_speed_10m ?? 8) * 10) / 10,
+        precipitationProbabilityPercent: precipProb,
+        rainfallMm: observedRain,
+        windSpeedKmh: windKmh,
         cloudCoverPercent: Math.round(currentData.cloud_cover ?? 20),
         conditionText: currentCondition,
-        timestamp: currentData.time || new Date().toISOString(),
-        isMock: false
+        timestamp: currentData.time || nowIso,
+        isMock: false,
+        apparentTemperatureC: apparentTemp,
+        observedRainfallMm: observedRain,
+        forecastRainfallMm: forecastRain,
+        validFrom,
+        validUntil,
+        retrievedAt: nowIso,
+        severeWeatherAlert: severeAlert
       };
 
       // Build daily forecast list
@@ -229,7 +362,8 @@ export class OpenMeteoWeatherProvider implements WeatherProvider {
         minTempC: Math.round((dailyData.temperature_2m_min?.[idx] ?? currentSnapshot.minTemperatureC) * 10) / 10,
         precipitationProbPercent: Math.round(dailyData.precipitation_probability_max?.[idx] ?? 0),
         rainfallMm: Math.round((dailyData.precipitation_sum?.[idx] ?? 0) * 10) / 10,
-        conditionText: interpretWmoCode(dailyData.weather_code?.[idx])
+        conditionText: interpretWmoCode(dailyData.weather_code?.[idx]),
+        windSpeedKmh: dailyData.wind_speed_10m_max?.[idx] !== undefined ? Math.round(dailyData.wind_speed_10m_max[idx] * 10) / 10 : undefined
       }));
 
       const forecast: WeatherForecast = {

@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useGarden } from '../context/GardenContext';
+import { useToast } from '../context/ToastContext';
 import { localOllamaVisionProvider } from '../services/localOllamaVisionProvider';
 import { GardenPhotoAnalysisResult, VisionAnalysisResult } from '../types';
 import {
@@ -31,6 +32,8 @@ export const PhotoUploader: React.FC = () => {
     saveAIObservation,
     addSpaceZone
   } = useGarden();
+
+  const { warning, success } = useToast();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
@@ -68,7 +71,7 @@ export const PhotoUploader: React.FC = () => {
 
   const processFile = (file: File) => {
     if (!file.type.startsWith('image/')) {
-      alert('Please upload an image file (PNG, JPG, WEBP).');
+      warning('Please upload an image file (PNG, JPG, WEBP).');
       return;
     }
     const reader = new FileReader();
@@ -528,7 +531,7 @@ export const PhotoUploader: React.FC = () => {
                               type: 'railing',
                               description: 'Confirmed balcony railing for planters'
                             });
-                            alert('Added "Railing Space" to your layout zones!');
+                            success('Added "Railing Space" to your layout zones!');
                           }
                         }}
                         className="btn btn-secondary btn-sm"
@@ -545,7 +548,7 @@ export const PhotoUploader: React.FC = () => {
                               type: 'wall',
                               description: 'Confirmed wall area for vertical greening'
                             });
-                            alert('Added "Wall Area" to your layout zones!');
+                            success('Added "Wall Area" to your layout zones!');
                           }
                         }}
                         className="btn btn-secondary btn-sm"

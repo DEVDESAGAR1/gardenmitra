@@ -28,7 +28,11 @@ if (typeof globalThis.localStorage === 'undefined') {
 }
 
 if (typeof globalThis.document === 'undefined') {
+  const listeners: Record<string, Function[]> = {};
   const documentMock = {
+    body: {
+      style: { overflow: '' }
+    },
     createElement: (tag: string) => {
       if (tag === 'video') {
         return {
@@ -53,7 +57,25 @@ if (typeof globalThis.document === 'undefined') {
           toDataURL: () => ''
         };
       }
-      return {};
+      return {
+        style: {},
+        setAttribute: () => {},
+        getAttribute: () => null,
+        hasAttribute: () => false,
+        querySelectorAll: () => [],
+        focus: () => {}
+      };
+    },
+    addEventListener: (type: string, fn: any) => {
+      listeners[type] = listeners[type] || [];
+      listeners[type].push(fn);
+    },
+    removeEventListener: (type: string, fn: any) => {
+      listeners[type] = (listeners[type] || []).filter(f => f !== fn);
+    },
+    dispatchEvent: (event: any) => {
+      (listeners[event.type] || []).forEach(f => f(event));
+      return true;
     }
   };
 
@@ -62,6 +84,11 @@ if (typeof globalThis.document === 'undefined') {
     writable: true,
     configurable: true
   });
+}
+
+if (typeof (globalThis as any).requestAnimationFrame === 'undefined') {
+  (globalThis as any).requestAnimationFrame = (cb: FrameRequestCallback) => setTimeout(cb, 0);
+  (globalThis as any).cancelAnimationFrame = (id: any) => clearTimeout(id);
 }
 
 if (typeof globalThis.window === 'undefined') {

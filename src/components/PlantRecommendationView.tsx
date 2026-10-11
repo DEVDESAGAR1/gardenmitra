@@ -129,9 +129,11 @@ export const PlantRecommendationView: React.FC = () => {
           </div>
 
           {/* Mode Switcher */}
-          <div style={{ display: 'flex', gap: '0.4rem', backgroundColor: 'var(--color-bg-base)', padding: '0.25rem', borderRadius: 'var(--radius-full)', border: '1px solid var(--color-border)' }}>
+          <div role="group" aria-label="Catalog display mode" style={{ display: 'flex', gap: '0.4rem', backgroundColor: 'var(--color-bg-base)', padding: '0.25rem', borderRadius: 'var(--radius-full)', border: '1px solid var(--color-border)' }}>
             <button
+              type="button"
               onClick={() => setActiveMode('recommendations')}
+              aria-pressed={activeMode === 'recommendations'}
               className={`btn btn-sm ${activeMode === 'recommendations' ? 'btn-primary' : 'btn-ghost'}`}
               style={{ borderRadius: 'var(--radius-full)', fontSize: '0.8rem', padding: '0.35rem 0.85rem' }}
             >
@@ -139,7 +141,9 @@ export const PlantRecommendationView: React.FC = () => {
               Best Fits ({filteredRecs.length})
             </button>
             <button
+              type="button"
               onClick={() => setActiveMode('all_library')}
+              aria-pressed={activeMode === 'all_library'}
               className={`btn btn-sm ${activeMode === 'all_library' ? 'btn-primary' : 'btn-ghost'}`}
               style={{ borderRadius: 'var(--radius-full)', fontSize: '0.8rem', padding: '0.35rem 0.85rem' }}
             >
@@ -169,6 +173,8 @@ export const PlantRecommendationView: React.FC = () => {
         <div style={{ position: 'relative' }}>
           <Search size={18} color="var(--color-text-subtle)" style={{ position: 'absolute', left: '0.85rem', top: '50%', transform: 'translateY(-50%)' }} />
           <input
+            id="plant-search-input"
+            aria-label="Search plant catalog by name, regional name, or description"
             type="text"
             placeholder="Search by common name (Tulsi, Tomato), Hindi, scientific name (Ocimum), or regional synonyms..."
             value={searchQuery}
@@ -186,6 +192,8 @@ export const PlantRecommendationView: React.FC = () => {
 
         {/* Category Pills */}
         <div
+          role="group"
+          aria-label="Plant category filters"
           style={{
             display: 'flex',
             gap: '0.4rem',
@@ -196,6 +204,8 @@ export const PlantRecommendationView: React.FC = () => {
           {categories.map((cat) => (
             <button
               key={cat.id}
+              type="button"
+              aria-pressed={selectedCategory === cat.id}
               onClick={() => setSelectedCategory(cat.id)}
               className={`btn btn-sm ${selectedCategory === cat.id ? 'btn-primary' : 'btn-secondary'}`}
               style={{ borderRadius: 'var(--radius-full)', whiteSpace: 'nowrap', fontSize: '0.8rem' }}
@@ -210,20 +220,20 @@ export const PlantRecommendationView: React.FC = () => {
           <span style={{ fontSize: '0.775rem', fontWeight: 600, color: 'var(--color-text-subtle)' }}>
             Quick Filters:
           </span>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', cursor: 'pointer' }}>
-            <input type="checkbox" checked={edibleOnly} onChange={(e) => setEdibleOnly(e.target.checked)} />
+          <label htmlFor="filter-edible" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', cursor: 'pointer' }}>
+            <input id="filter-edible" type="checkbox" checked={edibleOnly} onChange={(e) => setEdibleOnly(e.target.checked)} />
             <span>Edible Only</span>
           </label>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', cursor: 'pointer' }}>
-            <input type="checkbox" checked={petSafeOnly} onChange={(e) => setPetSafeOnly(e.target.checked)} />
+          <label htmlFor="filter-pet-safe" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', cursor: 'pointer' }}>
+            <input id="filter-pet-safe" type="checkbox" checked={petSafeOnly} onChange={(e) => setPetSafeOnly(e.target.checked)} />
             <span>Pet Safe Only 🐾</span>
           </label>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', cursor: 'pointer' }}>
-            <input type="checkbox" checked={indoorOnly} onChange={(e) => setIndoorOnly(e.target.checked)} />
+          <label htmlFor="filter-indoor" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', cursor: 'pointer' }}>
+            <input id="filter-indoor" type="checkbox" checked={indoorOnly} onChange={(e) => setIndoorOnly(e.target.checked)} />
             <span>Indoor Suitable 🏠</span>
           </label>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', cursor: 'pointer' }}>
-            <input type="checkbox" checked={beginnerOnly} onChange={(e) => setBeginnerOnly(e.target.checked)} />
+          <label htmlFor="filter-beginner" style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', cursor: 'pointer' }}>
+            <input id="filter-beginner" type="checkbox" checked={beginnerOnly} onChange={(e) => setBeginnerOnly(e.target.checked)} />
             <span>Very Easy / Beginner</span>
           </label>
         </div>

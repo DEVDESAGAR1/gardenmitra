@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useGarden } from '../context/GardenContext';
+import { useToast } from '../context/ToastContext';
 import { localSunPositionProvider } from '../services/localSunPositionProvider';
 import {
   Sun,
@@ -22,6 +23,8 @@ export const SunlightIntelligenceCard: React.FC = () => {
     recordSunlightObservation,
     addSunlightZone
   } = useGarden();
+
+  const { success } = useToast();
 
   const [isGuidedFlowOpen, setIsGuidedFlowOpen] = useState(false);
   const [selectedTimeOfDay, setSelectedTimeOfDay] = useState<'morning' | 'afternoon' | 'evening'>('morning');
@@ -51,7 +54,7 @@ export const SunlightIntelligenceCard: React.FC = () => {
       notes: observationNote.trim() || undefined
     });
     setObservationNote('');
-    alert(`Recorded ${selectedTimeOfDay} observation! Your sunlight estimate has been updated.`);
+    success(`Recorded ${selectedTimeOfDay} observation! Your sunlight estimate has been updated.`);
   };
 
   const handleAddZone = (e: React.FormEvent) => {
@@ -215,6 +218,8 @@ export const SunlightIntelligenceCard: React.FC = () => {
         {showAddZone && (
           <form onSubmit={handleAddZone} style={{ padding: '0.75rem', backgroundColor: 'var(--color-bg-base)', borderRadius: 'var(--radius-sm)', marginBottom: '0.75rem', display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center' }}>
             <input
+              id="zone-name-input"
+              aria-label="Micro-climate zone name"
               type="text"
               placeholder="Zone name (e.g. West Railing)"
               value={newZoneName}
@@ -224,6 +229,7 @@ export const SunlightIntelligenceCard: React.FC = () => {
               required
             />
             <select
+              aria-label="Micro-climate zone sunlight type"
               value={newZoneType}
               onChange={(e) => setNewZoneType(e.target.value as any)}
               className="input-field"
@@ -327,10 +333,11 @@ export const SunlightIntelligenceCard: React.FC = () => {
               <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--color-text-main)', display: 'block', marginBottom: '0.35rem' }}>
                 Observed Sunlight:
               </span>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.5rem' }}>
+              <div role="group" aria-label="Observed sunlight condition" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.5rem' }}>
                 <button
                   type="button"
                   onClick={() => setSelectedCondition('mostly_sunny')}
+                  aria-pressed={selectedCondition === 'mostly_sunny'}
                   className="btn btn-sm"
                   style={{
                     backgroundColor: selectedCondition === 'mostly_sunny' ? '#FEF3C7' : 'var(--color-bg-base)',
@@ -343,6 +350,7 @@ export const SunlightIntelligenceCard: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setSelectedCondition('partially_shaded')}
+                  aria-pressed={selectedCondition === 'partially_shaded'}
                   className="btn btn-sm"
                   style={{
                     backgroundColor: selectedCondition === 'partially_shaded' ? '#F0FDF4' : 'var(--color-bg-base)',
@@ -355,6 +363,7 @@ export const SunlightIntelligenceCard: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => setSelectedCondition('mostly_shaded')}
+                  aria-pressed={selectedCondition === 'mostly_shaded'}
                   className="btn btn-sm"
                   style={{
                     backgroundColor: selectedCondition === 'mostly_shaded' ? '#F1F5F9' : 'var(--color-bg-base)',
@@ -370,6 +379,8 @@ export const SunlightIntelligenceCard: React.FC = () => {
             {/* Notes input */}
             <div style={{ marginBottom: '1rem' }}>
               <input
+                id="observation-note-input"
+                aria-label="Sunlight observation note"
                 type="text"
                 placeholder="Optional notes (e.g. shadow from neighboring building)"
                 value={observationNote}

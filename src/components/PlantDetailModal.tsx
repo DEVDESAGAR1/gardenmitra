@@ -1,5 +1,6 @@
 import React from 'react';
 import { useGarden } from '../context/GardenContext';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { Plant } from '../types';
 import {
   X,
@@ -14,7 +15,8 @@ import {
   ShieldAlert,
   Thermometer,
   Calendar,
-  CheckCircle2
+  CheckCircle2,
+  TrendingUp
 } from 'lucide-react';
 
 interface PlantDetailModalProps {
@@ -23,7 +25,12 @@ interface PlantDetailModalProps {
 }
 
 export const PlantDetailModal: React.FC<PlantDetailModalProps> = ({ plant, onClose }) => {
-  const { isPlantInGarden, addPlantToGarden, removePlantFromGarden, profile } = useGarden();
+  const { isPlantInGarden, addPlantToGarden, removePlantFromGarden, selectedSpace, profile } = useGarden();
+
+  const modalRef = useFocusTrap<HTMLDivElement>({
+    isOpen: Boolean(plant),
+    onClose
+  });
 
   if (!plant) return null;
 
@@ -31,8 +38,16 @@ export const PlantDetailModal: React.FC<PlantDetailModalProps> = ({ plant, onClo
   const dataQuality = plant.dataQuality;
 
   return (
-    <div className="modal-overlay" onClick={onClose} role="dialog" aria-modal="true">
-      <div className="modal-card" onClick={(e) => e.stopPropagation()} style={{ maxWidth: 640, maxHeight: '90vh', overflowY: 'auto' }}>
+    <div className="modal-overlay" onClick={onClose}>
+      <div
+        ref={modalRef}
+        className="modal-card"
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="plant-detail-title"
+        style={{ maxWidth: 640, maxHeight: '90vh', overflowY: 'auto' }}
+      >
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
           <div>
@@ -43,19 +58,21 @@ export const PlantDetailModal: React.FC<PlantDetailModalProps> = ({ plant, onClo
               </span>
               {dataQuality && (
                 <span
-                  className="badge"
-                  style={{
-                    backgroundColor: dataQuality.status === 'verified' ? '#DCFCE7' : dataQuality.status === 'reviewed' ? '#EFF6FF' : '#FEF3C7',
-                    color: dataQuality.status === 'verified' ? '#15803D' : dataQuality.status === 'reviewed' ? '#1D4ED8' : '#B45309',
-                    fontSize: '0.725rem'
-                  }}
+                  className={`badge ${
+                    dataQuality.status === 'verified'
+                      ? 'badge-verified'
+                      : dataQuality.status === 'reviewed'
+                      ? 'badge-info'
+                      : 'badge-gold'
+                  }`}
+                  style={{ fontSize: '0.725rem' }}
                 >
                   {dataQuality.status === 'verified' ? '✓ Verified Data' : dataQuality.status === 'reviewed' ? 'Reviewed' : 'Provisional'}
                 </span>
               )}
             </div>
 
-            <h2 style={{ fontSize: '1.6rem', color: 'var(--color-primary-dark)', margin: 0 }}>
+            <h2 id="plant-detail-title" style={{ fontSize: '1.6rem', color: 'var(--color-primary-dark)', margin: 0 }}>
               {plant.name}
             </h2>
 
@@ -91,6 +108,65 @@ export const PlantDetailModal: React.FC<PlantDetailModalProps> = ({ plant, onClo
         <p style={{ fontSize: '0.95rem', color: 'var(--color-text-main)', marginBottom: '1.25rem' }}>
           {plant.shortDescription}
         </p>
+
+        {/* Milestone 17: Plant-Level Instance History & Performance */}
+        {(() => {
+          const plantInstance = selectedSpace?.plants?.find((p) => p.plantId === plant.id);
+          if (!plantInstance) return null;
+
+          const measurements = plantInstance.heightMeasurements || [];
+          const latestHeight = measurements.length > 0 ? measurements[measurements.length - 1].heightCm : null;
+          const waterCount = plantInstance.wateringCount || (plantInstance.careHistory?.filter((c) => c.type === 'watered').length || 0);
+
+          return (
+            <div
+              className="card"
+              style={{
+                padding: '0.9rem 1rem',
+                backgroundColor: '#F8FAFC',
+                border: '1.5px solid #E2E8F0',
+                marginBottom: '1.25rem'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem', flexWrap: 'wrap', gap: '0.35rem' }}>
+                <span style={{ fontSize: '0.825rem', fontWeight: 700, color: '#0F172A', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <TrendingUp size={15} color="var(--color-primary)" />
+                  Growing in {selectedSpace?.name || 'Garden'}
+                </span>
+                <span className="badge badge-green" style={{ fontSize: '0.675rem', textTransform: 'capitalize' }}>
+                  Stage: {plantInstance.lifecycleStage || 'Vegetative'}
+                </span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '0.5rem', marginBottom: '0.5rem' }}>
+                <div style={{ backgroundColor: '#FFFFFF', padding: '0.45rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid #E2E8F0' }}>
+                  <span style={{ fontSize: '0.675rem', color: 'var(--color-text-muted)', display: 'block' }}>Height</span>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#0F172A' }}>
+                    {latestHeight !== null ? `${latestHeight} cm` : 'Unmeasured'}
+                  </span>
+                </div>
+                <div style={{ backgroundColor: '#FFFFFF', padding: '0.45rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid #E2E8F0' }}>
+                  <span style={{ fontSize: '0.675rem', color: 'var(--color-text-muted)', display: 'block' }}>Waterings</span>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#0F172A' }}>
+                    {waterCount} logged
+                  </span>
+                </div>
+                <div style={{ backgroundColor: '#FFFFFF', padding: '0.45rem 0.6rem', borderRadius: 'var(--radius-sm)', border: '1px solid #E2E8F0' }}>
+                  <span style={{ fontSize: '0.675rem', color: 'var(--color-text-muted)', display: 'block' }}>Milestones</span>
+                  <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#0F172A' }}>
+                    {plantInstance.lifecycleHistory?.length || 0} recorded
+                  </span>
+                </div>
+              </div>
+
+              {plantInstance.lastWateredAt && (
+                <div style={{ fontSize: '0.725rem', color: '#64748B' }}>
+                  Last watered on {new Date(plantInstance.lastWateredAt).toLocaleDateString()}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Safety & Toxicity Banner */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.6rem', marginBottom: '1.25rem' }}>

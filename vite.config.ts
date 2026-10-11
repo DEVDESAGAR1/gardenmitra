@@ -8,6 +8,26 @@ export default defineConfig({
     port: 5173,
     host: true
   },
+  build: {
+    chunkSizeWarningLimit: 600,
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react') || id.includes('react-dom') || id.includes('scheduler')) {
+              return 'vendor-react';
+            }
+            if (id.includes('lucide-react')) {
+              return 'vendor-icons';
+            }
+          }
+          if (id.includes('src/data/plants') || id.includes('src\\data\\plants')) {
+            return 'plant-catalog';
+          }
+        }
+      }
+    }
+  },
   test: {
     setupFiles: ['./src/__tests__/setup.ts']
   }

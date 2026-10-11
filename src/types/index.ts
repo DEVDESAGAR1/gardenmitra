@@ -302,7 +302,9 @@ export type PlantJournalEntryType =
   | 'photo_added'
   | 'height_measured'
   | 'user_note'
-  | 'care_action';
+  | 'care_action'
+  | 'diagnosis_recorded'
+  | 'follow_up_recorded';
 
 export interface PlantJournalEntry {
   id: string;
@@ -318,6 +320,7 @@ export interface PlantJournalEntry {
   confidence?: number;
   stage?: PlantLifecycleStage;
   heightCm?: number;
+  diagnosisReportId?: string;
   environmentalSnapshot?: {
     temperatureC?: number;
     weatherCondition?: string;
@@ -453,6 +456,13 @@ export type PlantSymptom =
   | 'insects'
   | 'not_growing'
   | 'not_flowering'
+  | 'curling'
+  | 'drooping'
+  | 'leaf_drop'
+  | 'stunted_growth'
+  | 'root_concerns'
+  | 'pests'
+  | 'abnormal_flowering_fruiting'
   | 'other';
 
 export interface PlantHealthGuidance {
@@ -534,7 +544,22 @@ export interface StoredAIObservation {
 }
 
 /**
- * Environmental Intelligence Foundation Models (Milestone 2)
+ * Milestone 16: Severe Weather Alert & Weather Intelligence
+ */
+export interface SevereWeatherAlert {
+  id: string;
+  type: 'heatwave' | 'frost' | 'heavy_rain' | 'high_winds' | 'storm';
+  severity: 'advisory' | 'warning' | 'alert';
+  headline: string;
+  description: string;
+  instructions: string;
+  recommendedAction?: string;
+  validFrom?: string;
+  expiresAt?: string;
+}
+
+/**
+ * Environmental Intelligence Foundation Models (Milestone 2 & Milestone 16)
  */
 export interface WeatherSnapshot {
   temperatureC: number;
@@ -548,6 +573,15 @@ export interface WeatherSnapshot {
   conditionText: string;
   timestamp: string;
   isMock: boolean;
+
+  // Milestone 16 Weather Intelligence Extensions
+  apparentTemperatureC?: number;
+  observedRainfallMm?: number;
+  forecastRainfallMm?: number;
+  validFrom?: string;
+  validUntil?: string;
+  retrievedAt?: string;
+  severeWeatherAlert?: SevereWeatherAlert;
 }
 
 export interface DailyWeatherForecast {
@@ -557,6 +591,8 @@ export interface DailyWeatherForecast {
   precipitationProbPercent: number;
   rainfallMm: number;
   conditionText: string;
+  apparentTempMaxC?: number;
+  windSpeedKmh?: number;
 }
 
 export interface WeatherForecast {
@@ -987,4 +1023,436 @@ export interface GardenDigitalTwin {
   proposals?: DigitalTwinProposal[];
   activeProposal?: DigitalTwinProposal;
 }
+
+/**
+ * Milestone 13: Physical Garden Intelligence & Sensor Integration Models
+ */
+export type EnvironmentalMeasurementType =
+  | 'air_temperature'
+  | 'relative_humidity'
+  | 'soil_moisture'
+  | 'ambient_light'
+  | 'soil_temperature'
+  | 'rainfall';
+
+export type EnvironmentalUnit = '°C' | '%' | 'lux' | 'ppfd' | 'mm';
+
+export type ObservationSource =
+  | 'manual'
+  | 'connected_sensor'
+  | 'imported'
+  | 'simulated';
+
+export type ObservationDataQuality = 'valid' | 'questionable' | 'invalid';
+
+export type SensorDeviceType =
+  | 'soil_sensor'
+  | 'weather_station'
+  | 'light_meter'
+  | 'all_in_one'
+  | 'manual';
+
+export type SensorDeviceStatus = 'active' | 'idle' | 'disconnected';
+
+export interface SensorCalibration {
+  calibratedAt?: string;
+  offset?: number;
+  scale?: string;
+  notes?: string;
+}
+
+export interface SensorDevice {
+  id: string;
+  name: string;
+  type: SensorDeviceType;
+  spaceId: string;
+  supportedTypes: EnvironmentalMeasurementType[];
+  lastSeenAt?: string;
+  status: SensorDeviceStatus;
+  hardwareDetails?: {
+    manufacturer?: string;
+    model?: string;
+    firmwareVersion?: string;
+    protocol?: 'manual' | 'ble' | 'wifi' | 'mqtt' | 'http';
+  };
+  registeredAt: string;
+}
+
+export interface EnvironmentalObservation {
+  id: string;
+  spaceId: string;
+  plantInstanceId?: string;
+  type: EnvironmentalMeasurementType;
+  value: number;
+  unit: EnvironmentalUnit;
+  timestamp: string;
+  source: ObservationSource;
+  sensorId?: string;
+  calibration?: SensorCalibration;
+  dataQuality: ObservationDataQuality;
+  validationErrors?: string[];
+  notes?: string;
+}
+
+export interface EnvironmentalSummary {
+  type: EnvironmentalMeasurementType;
+  unit: EnvironmentalUnit;
+  min: number;
+  max: number;
+  avg: number;
+  latestValue: number;
+  latestTimestamp: string;
+  count: number;
+  isStale: boolean;
+}
+
+export interface PlantEnvironmentalInsight {
+  id: string;
+  plantInstanceId?: string;
+  spaceId: string;
+  title: string;
+  description: string;
+  supportingObservationIds: string[];
+  referencedRequirement?: {
+    requirement: string;
+    source: string;
+  };
+  evidenceQuality: 'verified_evidence' | 'reviewed_guidance' | 'insufficient_data';
+  severity: 'info' | 'warning' | 'alert';
+  recommendedNextStep: string;
+  createdAt: string;
+}
+
+/**
+ * Milestone 14: Adaptive Garden Care Planner & Action Engine Models
+ */
+export type CareActionCategory =
+  | 'watering'
+  | 'inspection'
+  | 'feeding'
+  | 'pruning'
+  | 'protection'
+  | 'milestone_check';
+
+export type CareRecommendationClassification =
+  | 'recommended'
+  | 'needs_inspection'
+  | 'insufficient_data'
+  | 'no_action_needed';
+
+export type CareEvidenceQuality = 'high' | 'moderate' | 'insufficient';
+
+export type CarePriority = 'high' | 'normal' | 'low';
+
+export type CareTaskStatus =
+  | 'suggested'
+  | 'planned'
+  | 'due'
+  | 'completed'
+  | 'snoozed'
+  | 'dismissed'
+  | 'expired'
+  | 'postponed'
+  | 'suppressed';
+
+export interface CareRecommendation {
+  id: string;
+  spaceId: string;
+  targetPlantInstanceId?: string;
+  plantId?: string;
+  category: CareActionCategory;
+  actionTitle: string;
+  actionInstructions: string;
+  reason: string;
+  supportingObservationIds?: string[];
+  supportingCareEventIds?: string[];
+  referencedRequirement?: {
+    source: string;
+    requirement: string;
+  };
+  evidenceQuality: CareEvidenceQuality;
+  classification: CareRecommendationClassification;
+  priority: CarePriority;
+  suggestedTimeWindow?: string;
+  createdAt: string;
+  expiresAt?: string;
+  status: 'active' | 'converted_to_task' | 'dismissed' | 'expired';
+
+  // Milestone 16 Weather Intelligence Extensions
+  weatherReason?: string;
+  isPostponedOrSuppressed?: boolean;
+  reevaluateAt?: string;
+  missingEvidence?: string[];
+  weatherAlert?: SevereWeatherAlert;
+  spaceExposure?: 'exposed' | 'sheltered' | 'indoor';
+  evidenceLimitations?: string[];
+}
+
+export interface AdaptiveCareTask {
+  id: string;
+  recommendationId?: string;
+  plantInstanceId?: string;
+  plantId?: string;
+  plantName?: string;
+  spaceId: string;
+  spaceName?: string;
+  title: string;
+  description: string;
+  category: CareActionCategory;
+  priority: CarePriority;
+  status: CareTaskStatus;
+  estimatedMinutes: number;
+  createdAt: string;
+  dueWindow?: string;
+  completedAt?: string;
+  completionNotes?: string;
+  snoozedUntil?: string;
+  dismissedAt?: string;
+  dismissReason?: string;
+  supportingObservationIds?: string[];
+  touchGrassPrompt?: string;
+
+  // Milestone 16 Weather Intelligence Extensions
+  isWeatherAware?: boolean;
+  weatherReason?: string;
+  isPostponed?: boolean;
+  reevaluateAt?: string;
+  missingEvidence?: string[];
+  weatherAlertHeadline?: string;
+  spaceExposure?: 'exposed' | 'sheltered' | 'indoor';
+}
+
+/**
+ * Milestone 15: Advanced Plant Health Intelligence Models
+ */
+export type SymptomAffectedPart =
+  | 'leaves_lower'
+  | 'leaves_upper'
+  | 'new_growth'
+  | 'stems'
+  | 'roots_base'
+  | 'flowers_fruit'
+  | 'whole_plant';
+
+export type SymptomProgression =
+  | 'sudden_1_2_days'
+  | 'gradual_past_week'
+  | 'chronic_weeks';
+
+export type SymptomDistribution =
+  | 'single_leaf'
+  | 'few_leaves'
+  | 'new_shoots'
+  | 'old_leaves'
+  | 'entire_plant';
+
+export interface StructuredSymptomReport {
+  primarySymptom: PlantSymptom;
+  affectedPart?: SymptomAffectedPart;
+  progression?: SymptomProgression;
+  distribution?: SymptomDistribution;
+  userNotes?: string;
+  photoUrl?: string;
+  recentChanges?: string[]; // e.g. 'repotting', 'location_shift', 'fertilizer', 'heatwave'
+}
+
+export type DiagnosisEvidenceStrength = 'likely' | 'possible' | 'insufficient_evidence';
+
+export type EvidenceItemSource =
+  | 'verified_botanical'
+  | 'user_observation'
+  | 'sensor_measurement'
+  | 'image_analysis'
+  | 'general_precaution';
+
+export interface DiagnosisEvidenceItem {
+  description: string;
+  source: EvidenceItemSource;
+  attribution?: string;
+  timestamp?: string;
+  isStale?: boolean;
+}
+
+export interface RankedDiagnosisCause {
+  id: string;
+  title: string;
+  explanation: string;
+  strength: DiagnosisEvidenceStrength;
+  supportingEvidence: DiagnosisEvidenceItem[];
+  conflictingEvidence: DiagnosisEvidenceItem[];
+  missingInformation: string[];
+  safeTreatmentSteps: string[];
+  urgentEscalationTriggers?: string[];
+  suggestedCareAction?: {
+    category: CareActionCategory;
+    title: string;
+    description: string;
+    priority: CarePriority;
+  };
+}
+
+export interface ContextualDiagnosisReport {
+  id: string;
+  spaceId: string;
+  plantInstanceId?: string;
+  plantId?: string;
+  plantName: string;
+  timestamp: string;
+  symptoms: StructuredSymptomReport;
+  summary: string;
+  rankedCauses: RankedDiagnosisCause[];
+  overallEvidenceStrength: DiagnosisEvidenceStrength;
+  generalPrecautions: string[];
+  followUpQuestions: string[];
+  isOfflineDeterministic: boolean;
+  aiVisionIncluded?: boolean;
+  disclaimer: string;
+}
+
+export interface DiagnosisRecord {
+  id: string;
+  report: ContextualDiagnosisReport;
+  createdAt: string;
+  userFeedback?: 'helpful' | 'needs_more_info' | 'incorrect';
+  createdTaskId?: string;
+  followUpStatus?: 'resolved' | 'improved' | 'no_change' | 'declined';
+  followUpNotes?: string;
+}
+
+/**
+ * Milestone 17: Garden Performance, Growth Insights & Explainable Analytics Models
+ */
+export type PerformanceTimeWindow = 'last_7_days' | 'last_30_days' | 'all_time';
+
+export type PerformanceInsightCategory =
+  | 'inventory'
+  | 'lifecycle'
+  | 'growth'
+  | 'care'
+  | 'health'
+  | 'environmental'
+  | 'milestone';
+
+export type PerformanceActionType =
+  | 'record_height'
+  | 'capture_photo'
+  | 'inspect_plant'
+  | 'review_task'
+  | 'complete_follow_up'
+  | 'check_soil';
+
+export interface ExplainablePerformanceInsight {
+  id: string;
+  stableKey: string;
+  category: PerformanceInsightCategory;
+  priority: 'high' | 'normal' | 'info';
+  title: string;
+  explanation: string;
+  supportingRecordIds: string[];
+  plantId?: string;
+  plantInstanceId?: string;
+  plantName?: string;
+  spaceId?: string;
+  spaceName?: string;
+  recordsExamined: number;
+  dataLimitations: string[];
+  recommendedNextAction?: string;
+  actionType?: PerformanceActionType;
+  latestEvidenceTimestamp?: string;
+  timeWindow?: PerformanceTimeWindow;
+}
+
+export interface PlantInventorySummary {
+  totalPlants: number;
+  activeCount: number;
+  plannedCount: number;
+  harvestedCount: number;
+  removedCount: number;
+  byCategory: Record<PlantCategory, number>;
+  bySpace: Array<{ spaceId: string; spaceName: string; count: number }>;
+}
+
+export interface LifecycleMilestoneEvent {
+  plantInstanceId: string;
+  plantName: string;
+  stage: PlantLifecycleStage;
+  date: string;
+  source: 'user' | 'system' | 'care_engine';
+  isConfirmed: boolean;
+}
+
+export interface LifecycleMilestonesSummary {
+  stageCounts: Record<PlantLifecycleStage, number>;
+  milestoneTimeline: LifecycleMilestoneEvent[];
+  confirmedMilestonesCount: number;
+  inferredMilestonesCount: number;
+}
+
+export interface PlantGrowthRateItem {
+  plantInstanceId: string;
+  plantName: string;
+  initialHeightCm?: number;
+  latestHeightCm?: number;
+  deltaCm?: number;
+  daysElapsed?: number;
+  growthRateCmPerDay?: number;
+  measurementCount: number;
+  status: 'sufficient_data' | 'insufficient_data';
+  measurements: Array<{ id: string; heightCm: number; measuredAt: string }>;
+  dataLimitations: string[];
+}
+
+export interface GrowthAnalyticsSummary {
+  totalObservations: number;
+  totalHeightMeasurements: number;
+  plantsWithMeasurements: number;
+  plantsWithSufficientData: number;
+  plantGrowthRates: PlantGrowthRateItem[];
+}
+
+export interface CareActivitySummary {
+  totalCompletedTasks: number;
+  totalPendingTasks: number;
+  totalEligibleTasks: number;
+  completionRatePercent: number | null;
+  denominatorExplanation: string;
+  tasksByCategory: Record<CareActionCategory, number>;
+  journalCareEventsCount: number;
+}
+
+export interface HealthRecoverySummary {
+  totalDiagnoses: number;
+  totalFollowUps: number;
+  outcomes: {
+    resolved: number;
+    improved: number;
+    no_change: number;
+    declined: number;
+    pending: number;
+  };
+  recurringSymptoms: Array<{ symptom: PlantSymptom; count: number }>;
+  plantsWarrantingInspection: Array<{
+    plantInstanceId: string;
+    plantName: string;
+    spaceId: string;
+    reason: string;
+  }>;
+}
+
+export interface GardenPerformanceReport {
+  generatedAt: string;
+  timeWindow: PerformanceTimeWindow;
+  spaceFilterId?: string;
+  inventory: PlantInventorySummary;
+  lifecycle: LifecycleMilestonesSummary;
+  growth: GrowthAnalyticsSummary;
+  care: CareActivitySummary;
+  health: HealthRecoverySummary;
+  insights: ExplainablePerformanceInsight[];
+  hasHistoricalWeather: boolean;
+  historicalWeatherNote: string;
+}
+
+
+
 

@@ -372,7 +372,9 @@ export const WeatherWidget: React.FC = () => {
               {POPULAR_CITIES.map((c) => (
                 <button
                   key={c}
+                  type="button"
                   onClick={() => handleQuickCitySelect(c)}
+                  aria-pressed={displayName.toLowerCase().includes(c.toLowerCase())}
                   className="btn btn-secondary btn-sm"
                   style={{
                     padding: '0.2rem 0.5rem',
@@ -390,6 +392,8 @@ export const WeatherWidget: React.FC = () => {
           {/* Manual city entry */}
           <form onSubmit={handleManualSubmit} style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.85rem' }}>
             <input
+              id="weather-custom-city"
+              aria-label="Enter custom city name"
               type="text"
               value={manualCityInput}
               onChange={(e) => setManualCityInput(e.target.value)}
@@ -419,10 +423,11 @@ export const WeatherWidget: React.FC = () => {
             }}
           >
             <span style={{ color: 'var(--color-text-subtle)' }}>Data Source Mode:</span>
-            <div style={{ display: 'flex', gap: '0.35rem' }}>
+            <div role="group" aria-label="Weather data source mode" style={{ display: 'flex', gap: '0.35rem' }}>
               <button
                 type="button"
                 onClick={() => setWeatherMode('live')}
+                aria-pressed={weatherMode === 'live'}
                 className={`btn btn-sm ${weatherMode === 'live' ? 'btn-primary' : 'btn-secondary'}`}
                 style={{ padding: '0.2rem 0.55rem', fontSize: '0.75rem' }}
               >
@@ -431,6 +436,7 @@ export const WeatherWidget: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setWeatherMode('mock')}
+                aria-pressed={weatherMode === 'mock'}
                 className={`btn btn-sm ${weatherMode === 'mock' ? 'btn-primary' : 'btn-secondary'}`}
                 style={{ padding: '0.2rem 0.55rem', fontSize: '0.75rem' }}
               >

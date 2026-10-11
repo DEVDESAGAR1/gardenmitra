@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useGarden } from '../context/GardenContext';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import {
   SpaceType,
   SpaceSize,
@@ -27,6 +28,11 @@ export const SpaceModal: React.FC = () => {
     addSpace,
     editSpace
   } = useGarden();
+
+  const modalRef = useFocusTrap<HTMLDivElement>({
+    isOpen: isSpaceModalOpen,
+    onClose: closeSpaceModal
+  });
 
   const [name, setName] = useState('');
   const [type, setType] = useState<SpaceType>('balcony');
@@ -154,16 +160,20 @@ export const SpaceModal: React.FC = () => {
   };
 
   return (
-    <div className="modal-overlay" onClick={closeSpaceModal} role="dialog" aria-modal="true">
+    <div className="modal-overlay" onClick={closeSpaceModal}>
       <div
+        ref={modalRef}
         className="modal-card"
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="space-modal-title"
         style={{ maxWidth: 640, maxHeight: '92vh' }}
       >
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.25rem' }}>
           <div>
-            <h2 style={{ fontSize: '1.5rem', color: 'var(--color-primary-dark)', margin: 0 }}>
+            <h2 id="space-modal-title" style={{ fontSize: '1.5rem', color: 'var(--color-primary-dark)', margin: 0 }}>
               {spaceModalMode === 'create' ? '+ Add New Space' : 'Edit Growing Space'}
             </h2>
             <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--color-text-muted)' }}>
@@ -183,8 +193,9 @@ export const SpaceModal: React.FC = () => {
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           {/* Space Name */}
           <div>
-            <label className="form-label">Space Name *</label>
+            <label htmlFor="space-name-input" className="form-label">Space Name *</label>
             <input
+              id="space-name-input"
               type="text"
               className="form-input"
               placeholder="e.g. Sunny Balcony, Kitchen Window, North Terrace"
@@ -204,11 +215,12 @@ export const SpaceModal: React.FC = () => {
               <Home size={16} color="var(--color-primary)" />
               <label className="form-label" style={{ margin: 0 }}>Where is this space located?</label>
             </div>
-            <div className="options-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))' }}>
+            <div role="group" aria-label="Space location type" className="options-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))' }}>
               {spaceOptions.map((opt) => (
                 <button
                   key={opt.id}
                   type="button"
+                  aria-pressed={type === opt.id}
                   onClick={() => setType(opt.id)}
                   className={`option-tile ${type === opt.id ? 'selected' : ''}`}
                   style={{ padding: '0.65rem 0.5rem' }}
@@ -226,11 +238,12 @@ export const SpaceModal: React.FC = () => {
               <Maximize2 size={16} color="var(--color-primary)" />
               <label className="form-label" style={{ margin: 0 }}>Approximate Size</label>
             </div>
-            <div className="options-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', marginBottom: '0.6rem' }}>
+            <div role="group" aria-label="Approximate space size" className="options-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', marginBottom: '0.6rem' }}>
               {sizeOptions.map((opt) => (
                 <button
                   key={opt.id}
                   type="button"
+                  aria-pressed={size === opt.id}
                   onClick={() => setSize(opt.id)}
                   className={`option-tile ${size === opt.id ? 'selected' : ''}`}
                   style={{ padding: '0.65rem 0.5rem' }}
@@ -247,6 +260,8 @@ export const SpaceModal: React.FC = () => {
               </summary>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginTop: '0.5rem' }}>
                 <input
+                  id="space-width-input"
+                  aria-label="Space width"
                   type="text"
                   placeholder="Width"
                   value={width}
@@ -256,6 +271,8 @@ export const SpaceModal: React.FC = () => {
                 />
                 <span>×</span>
                 <input
+                  id="space-length-input"
+                  aria-label="Space length"
                   type="text"
                   placeholder="Length"
                   value={length}
@@ -264,6 +281,7 @@ export const SpaceModal: React.FC = () => {
                   style={{ width: 100, padding: '0.5rem' }}
                 />
                 <select
+                  aria-label="Dimension unit"
                   value={unit}
                   onChange={(e) => setUnit(e.target.value as 'ft' | 'm')}
                   className="form-select"
@@ -282,11 +300,12 @@ export const SpaceModal: React.FC = () => {
               <Sun size={16} color="var(--color-sun-gold)" />
               <label className="form-label" style={{ margin: 0 }}>Direct Sunlight for this space</label>
             </div>
-            <div className="options-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))' }}>
+            <div role="group" aria-label="Direct sunlight exposure" className="options-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(110px, 1fr))' }}>
               {sunOptions.map((opt) => (
                 <button
                   key={opt.id}
                   type="button"
+                  aria-pressed={sunlight === opt.id}
                   onClick={() => setSunlight(opt.id)}
                   className={`option-tile ${sunlight === opt.id ? 'selected' : ''}`}
                   style={{ padding: '0.6rem 0.4rem' }}
@@ -304,11 +323,12 @@ export const SpaceModal: React.FC = () => {
               <Target size={16} color="var(--color-terracotta)" />
               <label className="form-label" style={{ margin: 0 }}>What would you love to grow here?</label>
             </div>
-            <div className="options-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
+            <div role="group" aria-label="Growing goals" className="options-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))' }}>
               {goalOptions.map((opt) => (
                 <button
                   key={opt.id}
                   type="button"
+                  aria-pressed={goal === opt.id}
                   onClick={() => setGoal(opt.id)}
                   className={`option-tile ${goal === opt.id ? 'selected' : ''}`}
                   style={{ padding: '0.6rem 0.5rem', textAlign: 'left', alignItems: 'flex-start' }}
@@ -364,6 +384,7 @@ export const SpaceModal: React.FC = () => {
                 <input
                   type="file"
                   accept="image/*"
+                  aria-label="Upload photo for this space"
                   onChange={handleFileUpload}
                   style={{ display: 'none' }}
                 />

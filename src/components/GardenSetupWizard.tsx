@@ -142,8 +142,9 @@ export const GardenSetupWizard: React.FC = () => {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '0.75rem', marginBottom: '0.75rem' }}>
             <div>
-              <label className="form-label">City *</label>
+              <label htmlFor="wizard-city-input" className="form-label">City *</label>
               <input
+                id="wizard-city-input"
                 type="text"
                 className="form-input"
                 placeholder="e.g. Mumbai, Bengaluru, Austin"
@@ -156,8 +157,9 @@ export const GardenSetupWizard: React.FC = () => {
               />
             </div>
             <div>
-              <label className="form-label">State / Region</label>
+              <label htmlFor="wizard-state-input" className="form-label">State / Region</label>
               <input
+                id="wizard-state-input"
                 type="text"
                 className="form-input"
                 placeholder="e.g. Maharashtra, Texas"
@@ -166,8 +168,9 @@ export const GardenSetupWizard: React.FC = () => {
               />
             </div>
             <div>
-              <label className="form-label">Country</label>
+              <label htmlFor="wizard-country-input" className="form-label">Country</label>
               <input
+                id="wizard-country-input"
                 type="text"
                 className="form-input"
                 placeholder="e.g. India, USA, UK"
@@ -207,11 +210,12 @@ export const GardenSetupWizard: React.FC = () => {
             <Home size={22} color="var(--color-primary)" />
             <h3>B. Where will your garden live?</h3>
           </div>
-          <div className="options-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))' }}>
+          <div role="group" aria-label="Garden space type" className="options-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))' }}>
             {spaceOptions.map((opt) => (
               <button
                 key={opt.id}
                 type="button"
+                aria-pressed={spaceType === opt.id}
                 onClick={() => setSpaceType(opt.id)}
                 className={`option-tile ${spaceType === opt.id ? 'selected' : ''}`}
               >
@@ -228,11 +232,12 @@ export const GardenSetupWizard: React.FC = () => {
             <Maximize2 size={22} color="var(--color-primary)" />
             <h3>C. Approximate space size</h3>
           </div>
-          <div className="options-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', marginBottom: '1.25rem' }}>
+          <div role="group" aria-label="Approximate space size" className="options-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', marginBottom: '1.25rem' }}>
             {sizeOptions.map((opt) => (
               <button
                 key={opt.id}
                 type="button"
+                aria-pressed={spaceSize === opt.id}
                 onClick={() => setSpaceSize(opt.id)}
                 className={`option-tile ${spaceSize === opt.id ? 'selected' : ''}`}
               >
@@ -248,6 +253,8 @@ export const GardenSetupWizard: React.FC = () => {
             </summary>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.75rem', flexWrap: 'wrap' }}>
               <input
+                id="wizard-width-input"
+                aria-label="Garden width"
                 type="text"
                 placeholder="Width (e.g. 6)"
                 value={width}
@@ -257,6 +264,8 @@ export const GardenSetupWizard: React.FC = () => {
               />
               <span>×</span>
               <input
+                id="wizard-length-input"
+                aria-label="Garden length"
                 type="text"
                 placeholder="Length (e.g. 10)"
                 value={length}
@@ -265,6 +274,7 @@ export const GardenSetupWizard: React.FC = () => {
                 style={{ width: 120 }}
               />
               <select
+                aria-label="Dimension unit"
                 value={dimensionUnit}
                 onChange={(e) => setDimensionUnit(e.target.value as 'ft' | 'm')}
                 className="form-select"
@@ -286,11 +296,12 @@ export const GardenSetupWizard: React.FC = () => {
           <p style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
             How many hours of direct, unbroken sunlight reaches this space on a clear day?
           </p>
-          <div className="options-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))' }}>
+          <div role="group" aria-label="Direct sunlight exposure" className="options-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))' }}>
             {sunOptions.map((opt) => (
               <button
                 key={opt.id}
                 type="button"
+                aria-pressed={sunlight === opt.id}
                 onClick={() => setSunlight(opt.id)}
                 className={`option-tile ${sunlight === opt.id ? 'selected' : ''}`}
               >
@@ -307,11 +318,12 @@ export const GardenSetupWizard: React.FC = () => {
             <Sprout size={22} color="var(--color-primary)" />
             <h3>E. Gardening Experience</h3>
           </div>
-          <div className="options-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))' }}>
+          <div role="group" aria-label="Gardening experience level" className="options-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))' }}>
             {expOptions.map((opt) => (
               <button
                 key={opt.id}
                 type="button"
+                aria-pressed={experience === opt.id}
                 onClick={() => setExperience(opt.id)}
                 className={`option-tile ${experience === opt.id ? 'selected' : ''}`}
               >
@@ -331,11 +343,12 @@ export const GardenSetupWizard: React.FC = () => {
           <p style={{ fontSize: '0.875rem', marginBottom: '1rem' }}>
             Not sure? Select &ldquo;I don't know&rdquo; and we'll pick the most resilient starter crops.
           </p>
-          <div className="options-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
+          <div role="group" aria-label="Gardening goals" className="options-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
             {goalOptions.map((opt) => (
               <button
                 key={opt.id}
                 type="button"
+                aria-pressed={goal === opt.id}
                 onClick={() => setGoal(opt.id)}
                 className={`option-tile ${goal === opt.id ? 'selected' : ''}`}
                 style={{ textAlign: 'left', alignItems: 'flex-start', padding: '1rem' }}

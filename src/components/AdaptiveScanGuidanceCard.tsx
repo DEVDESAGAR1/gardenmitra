@@ -443,8 +443,9 @@ export const AdaptiveScanGuidanceCard: React.FC = () => {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.6rem', marginBottom: '0.75rem' }}>
             <div>
-              <label style={{ fontSize: '0.75rem', display: 'block', marginBottom: '0.2rem' }}>Dimension Name</label>
+              <label htmlFor="scan-dim-name" style={{ fontSize: '0.75rem', display: 'block', marginBottom: '0.2rem' }}>Dimension Name</label>
               <input
+                id="scan-dim-name"
                 type="text"
                 className="input input-sm"
                 value={dimensionName}
@@ -455,8 +456,9 @@ export const AdaptiveScanGuidanceCard: React.FC = () => {
             </div>
 
             <div>
-              <label style={{ fontSize: '0.75rem', display: 'block', marginBottom: '0.2rem' }}>Number of Tiles</label>
+              <label htmlFor="scan-tile-count" style={{ fontSize: '0.75rem', display: 'block', marginBottom: '0.2rem' }}>Number of Tiles</label>
               <input
+                id="scan-tile-count"
                 type="number"
                 step="0.5"
                 min="1"
@@ -518,8 +520,9 @@ export const AdaptiveScanGuidanceCard: React.FC = () => {
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.6rem', marginBottom: '0.75rem' }}>
             <div>
-              <label style={{ fontSize: '0.75rem', display: 'block', marginBottom: '0.2rem' }}>Name</label>
+              <label htmlFor="scan-manual-name" style={{ fontSize: '0.75rem', display: 'block', marginBottom: '0.2rem' }}>Name</label>
               <input
+                id="scan-manual-name"
                 type="text"
                 className="input input-sm"
                 value={manualName}
@@ -531,8 +534,9 @@ export const AdaptiveScanGuidanceCard: React.FC = () => {
             </div>
 
             <div>
-              <label style={{ fontSize: '0.75rem', display: 'block', marginBottom: '0.2rem' }}>Value</label>
+              <label htmlFor="scan-manual-value" style={{ fontSize: '0.75rem', display: 'block', marginBottom: '0.2rem' }}>Value</label>
               <input
+                id="scan-manual-value"
                 type="number"
                 step="0.1"
                 min="0.5"

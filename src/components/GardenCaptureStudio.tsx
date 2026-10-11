@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useGarden } from '../context/GardenContext';
+import { useToast } from '../context/ToastContext';
 import { captureGuidanceService } from '../services/captureGuidanceService';
 import {
   GardenMediaAsset,
@@ -37,6 +38,8 @@ export const GardenCaptureStudio: React.FC<GardenCaptureStudioProps> = ({ onClos
     modelAvailability,
     checkModelAvailability
   } = useGarden();
+
+  const { warning } = useToast();
 
   const [activeTab, setActiveTab] = useState<'upload' | 'camera' | 'video'>('upload');
   const [checklist, setChecklist] = useState<SpaceCaptureChecklistItem[]>([]);
@@ -277,7 +280,7 @@ export const GardenCaptureStudio: React.FC<GardenCaptureStudioProps> = ({ onClos
     if (!file) return;
 
     if (!file.type.startsWith('video/')) {
-      alert('Please select a valid video file (MP4, WebM, MOV).');
+      warning('Please select a valid video file (MP4, WebM, MOV).');
       return;
     }
 

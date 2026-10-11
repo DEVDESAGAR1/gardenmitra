@@ -33,7 +33,7 @@ GardenMitra solves this by offering an opinionated, beginner-proof onboarding pa
 
 ---
 
-## 🚀 Implemented Milestones (M0 – M12)
+## 🚀 Implemented Milestones (M0 – M15)
 
 | Milestone | Status | Description |
 | :--- | :---: | :--- |
@@ -49,6 +49,11 @@ GardenMitra solves this by offering an opinionated, beginner-proof onboarding pa
 | **M10: Digital Twin & Layout Proposals** | ✅ Complete | Persistent 2D twin with visual uncertainty representation, 4 deterministic layout algorithms, and offline canvas visualizer. |
 | **M11: Plant Knowledge Expansion** | ✅ Complete | 104 curated Indian home garden plants, structured provenance metadata (ICAR/TNAU/POWO), multi-field search (Devanagari/scientific/regional), and explainable recommendation intelligence. |
 | **M12: Garden Memory & Growth Tracking** | ✅ Complete | Stable plant instance identity, lifecycle stage tracking, chronological growth journal, photo comparisons with honest perspective disclaimers, height measurement log, and gentle garden insights. |
+| **M13: Physical Garden Intelligence** | ✅ Complete | Physical sensor & manual measurement ingestion (temp, humidity, soil moisture, light, rainfall), physical boundary validation, deduplication, trend analytics, and plant-specific requirement comparisons. |
+| **M14: Adaptive Care Planner & Actions** | ✅ Complete | Deterministic care recommendation engine, persistent task lifecycle (due, complete, snooze, dismiss), zero-duplicate task synchronization, and automatic journal integration. |
+| **M15: Advanced Plant Health Intelligence** | ✅ Complete | Contextual plant doctor synthesizing plant identity, lifecycle stage, symptoms, physical M13 measurements, and botanical provenance into ranked causes with evidence attribution, zero manufactured certainty, safe reversible care tasks, 48-72h recovery follow-up, and journal sync. |
+| **M16: Weather-Aware Garden Intelligence** | ✅ Complete | Multi-variable weather intelligence (Open-Meteo live/cached/stale/unavailable), severe weather warnings (frost, storm, heatwave), shelter & exposure awareness (exposed vs sheltered vs indoor), telemetry freshness checks (>24h stale prompts physical check), plant-specific temperature limits, forecast rain postponement without false completion, and deduplicated notification reminders. |
+| **M17: Garden Performance & Analytics** | ✅ Complete | Fully deterministic garden analytics engine, real persisted history analysis, plant inventory & lifecycle milestone breakdown, dated height growth rate calculations (cm/day) with data limitation transparency, care completion analytics with explicit mathematical denominators (strictly excluding dismissed tasks), health recovery tracking with 48-72h re-inspection alerts, and explainable insight feed with actionable direct-jump modals. |
 
 ---
 
@@ -56,17 +61,20 @@ GardenMitra solves this by offering an opinionated, beginner-proof onboarding pa
 
 ```
 src/
-├── services/
+│   ├── gardenPerformanceService.ts      # M17: Fully deterministic garden analytics engine & explainable insights
+│   ├── plantHealthDiagnosticEngine.ts   # M15: Contextual evidence-based plant doctor, ranked causes & safe recovery guidance
+│   ├── environmentalValidation.ts       # M13: Physical boundary validation, non-finite checks & unit rules
+│   ├── environmentalService.ts          # M13: Hardware device registry, observation ingestion, trends & botanical insights
+│   ├── adaptiveCareEngine.ts            # M14/M16: Weather-aware deterministic care recommendations & task lifecycle
 │   ├── localPlantKnowledgeProvider.ts   # M11: 104-plant catalog, multi-field search & explainable recommendation engine
 │   ├── growthTrackingEngine.ts          # M12: Lifecycle stage tracking, height analytics & qualitative comparison
 │   ├── gardenMemoryEngine.ts            # M12: Plant instance normalization, journal entries & gentle insights
 │   ├── browserLocationProvider.ts       # M7: User-initiated Geolocation API & fallback
-│   ├── openMeteoWeatherProvider.ts      # M7: Real Open-Meteo forecast API & 30m cache
+│   ├── openMeteoWeatherProvider.ts      # M7/M16: Real Open-Meteo forecast API, 30m cache & severe weather alert detection
 │   ├── environmentalRuleEngine.ts       # M2/M7: Weather advice & shelter-aware tasks
 │   ├── localSunPositionProvider.ts      # M5/M7: Solar calculations using geo coordinates
 │   ├── localMediaStorage.ts             # M8: IndexedDB binary storage for photos/videos
 │   ├── videoFrameExtractor.ts           # M8: In-browser keyframe extraction & downscaling
-│   ├── captureGuidanceService.ts        # M8: Space-specific capture checklists
 │   ├── captureCoverageEngine.ts        # M9: Space view angle coverage and missing view suggestions
 │   ├── spaceMeasurementEngine.ts        # M9: Calibration via tiles or known dimensions
 │   ├── usableSpaceEngine.ts             # M9: Protected walking corridor & usable area computation
@@ -77,16 +85,18 @@ src/
 │   ├── careEngine.ts                    # M3: Smart watering & reminder engine
 │   └── types.ts                         # Core Provider Interfaces
 ├── components/
+│   ├── GardenPerformanceView.tsx        # M17: Performance dashboard, inventory, milestones, growth rates & care analytics
+│   ├── CarePlannerView.tsx              # M14/M16: Weather-aware adaptive care planner, grouping, task completion & snooze
+│   ├── GardenEnvironmentView.tsx        # M13: Physical measurements dashboard, observation entry, trend log & sensor registry
 │   ├── GardenJournalView.tsx            # M12: Growth journal, photo comparison & height tracker
 │   ├── PlantRecommendationView.tsx      # M11: Searchable plant library & explainable recommendations
-│   ├── PlantDetailModal.tsx             # M11: Detailed botanical card with provenance & regional names
+│   ├── PlantDetailModal.tsx             # M11/M17: Detailed botanical card with provenance, measurements & instance stats
 │   ├── DigitalTwinStudio.tsx            # M10: Interactive 2D twin & layout proposal generator
 │   ├── AdaptiveScanGuidanceCard.tsx     # M9: Scan angle checklist & calibration wizard
 │   ├── GardenCaptureStudio.tsx          # M8: Unified Photo / Camera / Video capture
-│   ├── WeatherWidget.tsx                # M7: Real environmental conditions & controls
 │   └── ...
 └── context/
-    └── GardenContext.tsx                # Unified state, IndexedDB & LocalStorage sync (Schema v5)
+    └── GardenContext.tsx                # Unified state, IndexedDB & LocalStorage sync (Schema v6)
 ```
 
 ### Architectural Highlights
@@ -100,7 +110,10 @@ src/
 - **M9 Adaptive Space Scanning & Usable Space:** Evaluates documented angles per space type (`balcony`, `terrace`, `backyard`, `windowsill`), prioritizes missing views, calibrates physical dimensions using tile references or user measurements without assuming standard tile sizes, preserves a protected 2ft walking corridor, and stores user-confirmed observations distinctly from AI estimations.
 - **M10 Garden Digital Twin & AI Visualizer:** Maintains an editable, persistent digital representation of each real garden space with visual uncertainty rendering (solid = measured, dashed = estimated, hatched = clear walkways). Provides 4 deterministic layout proposal modes (`beginner_friendly`, `space_efficient`, `max_edibles`, `low_maintenance`), before-and-after visual comparisons without state mutation before user acceptance, and 100% offline conceptual architectural rendering with explicit illustrative disclaimers.
 - **M11 Plant Knowledge Base & Recommendation Intelligence:** 104 curated plant profiles tailored to Indian balconies, terraces, and home gardens. Comprehensive multi-field search across English, Hindi (Latin + Devanagari), botanical scientific names, and regional dialects (Tamil, Telugu, Bengali, Kannada, Marathi). Deterministic explainable recommendation engine breaking matches into positive reasons, potential conflicts, missing information, and next practical actions. Strict data provenance metadata attributing ICAR, TNAU, and Kew POWO.
-- **M12 Garden Memory & Growth Tracking:** Stable plant instance identity allowing multiple pots of the same species. Chronological plant journal recording user notes, watering events, flowering, and harvests. Side-by-side growth photo comparison with explicit perspective disclaimers. Quantitative height logging with daily growth rate analysis. Gentle non-guilt garden insights engine. Full offline persistence with schema version 5 idempotent migration.
+- **M12 Garden Memory & Growth Tracking:** Stable plant instance identity allowing multiple pots of the same species. Chronological plant journal recording user notes, watering events, flowering, and harvests. Side-by-side growth photo comparison with explicit perspective disclaimers. Quantitative height logging with daily growth rate analysis. Gentle non-guilt garden insights engine. Full offline persistence with schema version 5/6 idempotent migration.
+- **M13 Physical Garden Intelligence & Sensor Integration:** Strongly typed physical observation model covering temperature, relative humidity, soil moisture, ambient light (lux/ppfd), and rainfall. Rigorous physical boundary validation rejecting non-finite and impossible values. Duplicate reading suppression within 30-second windows. Hardware sensor device registration registry. Stale-data detection (> 24h) and plant-specific requirement comparisons (heat stress alerts, chilling warnings, moisture saturation vs deficit).
+- **M14 Adaptive Garden Care Planner & Action Engine:** Deterministic, explainable care recommendation engine synthesizing plant lifecycle stages, historical care logs, recent valid sensor measurements, and seasonal calendars. Automatic conversion into persistent, deduplicated `AdaptiveCareTask` items. End-to-end task completion logging authentic user actions into the persistent growth journal, with snooze (+24h) and dismissal capabilities. Fully advisory architecture with zero automated pump/hardware actuation.
+- **M15 Advanced Plant Health Intelligence:** Contextual, evidence-based diagnostic engine. Synthesizes plant species identity from M11's 104-plant catalog, lifecycle stage, structured symptoms (progression, distribution, affected plant parts), historical care logs, M13 sensor telemetry, and ICAR/TNAU botanical baselines. Highlights stale environmental readings (> 24h) honestly without fake confirmation. Generates ranked possible causes with supporting and conflicting evidence pills, missing information lists, safe reversible treatment steps, and urgent escalation triggers. Seamlessly converts actionable steps into deduplicated M14 Care Tasks and tracks 48–72h recovery follow-ups synced to the M12 Garden Journal.
 
 ---
 
@@ -118,7 +131,7 @@ src/
 - **Bundler & Dev Server:** Vite 5
 - **Styling:** Vanilla CSS with custom nature-inspired design tokens (Moss Greens, Terracotta Clay, Warm Sand)
 - **Icons:** Lucide React
-- **Testing:** Vitest (131 automated unit and integration tests covering M0–M10 across 15 test suites)
+- **Testing:** Vitest (183 automated unit and integration tests covering M0–M15 across 20 test suites)
 
 ---
 

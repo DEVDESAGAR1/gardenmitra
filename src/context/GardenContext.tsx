@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
+import { useToast } from './ToastContext';
 import {
   Garden,
   GardenSpace,
@@ -47,8 +48,19 @@ import {
   GardenDigitalTwin,
   PlantLifecycleStage,
   PlantJournalEntry,
-  GardenInsight
+  GardenInsight,
+  EnvironmentalObservation,
+  SensorDevice,
+  EnvironmentalSummary,
+  PlantEnvironmentalInsight,
+  CareRecommendation,
+  AdaptiveCareTask,
+  StructuredSymptomReport,
+  ContextualDiagnosisReport,
+  DiagnosisRecord,
+  PlantPhotoAnalysisResult
 } from '../types';
+import { PLANT_CATALOG } from '../data/plants';
 import { plantKnowledgeProvider } from '../services/localPlantKnowledgeProvider';
 import { shoppingProvider } from '../services/localShoppingProvider';
 import { taskGenerator } from '../services/localTaskGenerator';
@@ -65,11 +77,14 @@ import { layoutValidationEngine, layoutRecommendationEngine } from '../services/
 import { localMediaStorage } from '../services/localMediaStorage';
 import { videoFrameExtractor, VideoExtractionOptions } from '../services/videoFrameExtractor';
 import { captureCoverageEngine } from '../services/captureCoverageEngine';
-import { spaceMeasurementEngine } from '../services/spaceMeasurementEngine';
 import { usableSpaceEngine } from '../services/usableSpaceEngine';
 import { digitalTwinRecommendationEngine } from '../services/digitalTwinRecommendationEngine';
 import { aiVisualizerService, VisualConceptOutput } from '../services/aiVisualizerService';
+import { normalizeGardenSpace } from '../services/gardenSpaceNormalizer';
 import { gardenMemoryEngine } from '../services/gardenMemoryEngine';
+import { environmentalService } from '../services/environmentalService';
+import { adaptiveCareEngine } from '../services/adaptiveCareEngine';
+import { plantHealthDiagnosticEngine } from '../services/plantHealthDiagnosticEngine';
 
 export type NavigationTab = 
   | 'home' 
@@ -82,7 +97,33 @@ export type NavigationTab =
   | 'today'
   | 'layout'
   | 'twin'
-  | 'journal';
+  | 'journal'
+  | 'environment'
+  | 'planner'
+  | 'performance';
+
+export const VALID_NAV_TABS: Record<string, NavigationTab> = {
+  home: 'home',
+  setup: 'setup',
+  my_garden: 'my_garden',
+  plants: 'plants',
+  shopping: 'shopping',
+  chat: 'chat',
+  doctor: 'doctor',
+  today: 'today',
+  layout: 'layout',
+  twin: 'twin',
+  journal: 'journal',
+  environment: 'environment',
+  planner: 'planner',
+  performance: 'performance'
+};
+
+export const getTabFromHash = (hashStr?: string): NavigationTab => {
+  const raw = hashStr ?? (typeof window !== 'undefined' && window.location ? window.location.hash : '');
+  const clean = raw.trim().replace(/^#\/?/, '').trim().toLowerCase();
+  return VALID_NAV_TABS[clean] || 'home';
+};
 
 interface GardenContextType {
   // Milestone 1 Multi-Space Models
@@ -292,125 +333,81 @@ interface GardenContextType {
     note?: string
   ) => void;
   getAllGardenJournalEntries: () => PlantJournalEntry[];
+
+  // Milestone 13: Physical Garden Intelligence & Sensor Integration
+  environmentalObservations: EnvironmentalObservation[];
+  sensorDevices: SensorDevice[];
+  environmentalSummaries: EnvironmentalSummary[];
+  plantEnvironmentalInsights: PlantEnvironmentalInsight[];
+  addObservation: (candidate: Partial<EnvironmentalObservation>) => { success: boolean; observation?: EnvironmentalObservation; errors?: string[] };
+  registerSensorDevice: (device: Partial<SensorDevice>) => { success: boolean; device?: SensorDevice; error?: string };
+  getSpaceObservations: (spaceId: string) => EnvironmentalObservation[];
+
+  // Milestone 14: Adaptive Garden Care Planner & Action Engine
+  careRecommendations: CareRecommendation[];
+  adaptiveCareTasks: AdaptiveCareTask[];
+  completeAdaptiveCareTask: (taskId: string, notes?: string) => void;
+  snoozeAdaptiveCareTask: (taskId: string, hours?: number) => void;
+  dismissAdaptiveCareTask: (taskId: string, reason?: string) => void;
+  refreshCarePlanner: () => void;
+
+  // Milestone 15: Advanced Plant Health Intelligence
+  diagnosisHistory: DiagnosisRecord[];
+  diagnosePlantHealth: (params: {
+    plantInstanceId?: string;
+    plantId?: string;
+    symptoms: StructuredSymptomReport;
+    visionResult?: PlantPhotoAnalysisResult | null;
+  }) => ContextualDiagnosisReport;
+  saveDiagnosisRecord: (report: ContextualDiagnosisReport) => DiagnosisRecord;
+  convertDiagnosisToCareTask: (
+    diagnosisRecordId: string,
+    causeId?: string
+  ) => { success: boolean; task?: AdaptiveCareTask; message: string };
+  recordDiagnosisFollowUp: (
+    recordId: string,
+    status: 'resolved' | 'improved' | 'no_change' | 'declined',
+    notes?: string
+  ) => void;
 }
 
 const STORAGE_KEY = 'gardenmitra_state_v1';
 
 const GardenContext = createContext<GardenContextType | undefined>(undefined);
 
-export function normalizeGardenSpace(sp: GardenSpace): GardenSpace {
-  const sunlightProfile =
-    sp.sunlightProfile ||
-    sunlightEstimationEngine.createInitialProfile(sp.sunlight || '2_to_4h', sp.type || 'balcony');
-
-  const sunlightZones: SunlightZone[] =
-    sp.sunlightZones && sp.sunlightZones.length > 0
-      ? sp.sunlightZones
-      : [
-          {
-            id: `sz-sunny-${sp.id}`,
-            spaceId: sp.id,
-            name: 'Sunny Zone',
-            type: 'sunny',
-            description: 'Direct sunlight area'
-          },
-          {
-            id: `sz-partial-${sp.id}`,
-            spaceId: sp.id,
-            name: 'Partial Shade',
-            type: 'partial_shade',
-            description: 'Filtered light area'
-          }
-        ];
-
-  const layout: SpaceLayout =
-    sp.layout || {
-      width: sp.dimensions?.width,
-      depth: sp.dimensions?.length,
-      unit: sp.dimensions?.unit || 'ft',
-      zones: [
-        {
-          id: `zone-sunny-${sp.id}`,
-          spaceId: sp.id,
-          name: 'Sunny Area',
-          type: 'sunny_area',
-          sunlightZoneId: sunlightZones[0]?.id
-        },
-        {
-          id: `zone-shade-${sp.id}`,
-          spaceId: sp.id,
-          name: 'Filtered Shade',
-          type: 'shaded_area',
-          sunlightZoneId: sunlightZones[1]?.id
-        },
-        {
-          id: `zone-walkway-${sp.id}`,
-          spaceId: sp.id,
-          name: '2ft Central Walkway',
-          type: 'walkway',
-          isWalkway: true
-        }
-      ],
-      containers: [],
-      plantPlacements: [],
-      updatedAt: new Date().toISOString()
-    };
-
-  const userObservations: UserConfirmableObservation[] = Array.isArray(sp.userObservations)
-    ? sp.userObservations
-    : [];
-
-  const measurements: SpaceMeasurement[] =
-    Array.isArray(sp.measurements) && sp.measurements.length > 0
-      ? sp.measurements
-      : spaceMeasurementEngine.getMeasurementsForSpace(sp);
-
-  const coverage: SpaceCaptureCoverage =
-    sp.coverage ||
-    captureCoverageEngine.evaluateCoverage({
-      ...sp,
-      measurements,
-      userObservations
-    });
-
-  const digitalTwin: GardenDigitalTwin =
-    sp.digitalTwin ||
-    digitalTwinRecommendationEngine.getOrCreateDigitalTwin({
-      ...sp,
-      layout,
-      measurements,
-      userObservations,
-      coverage
-    });
-
-  return {
-    ...sp,
-    plants: (sp.plants || []).map((gp: GardenPlant, idx: number) => {
-      const normalized = gardenMemoryEngine.normalizePlantInstance(gp, sp.id, idx);
-      return {
-        ...normalized,
-        careHistory: Array.isArray(gp.careHistory) ? gp.careHistory : [],
-        wateringCount: typeof gp.wateringCount === 'number' ? gp.wateringCount : 0
-      };
-    }),
-    photos: Array.isArray(sp.photos) ? sp.photos : [],
-    mediaAssets: Array.isArray(sp.mediaAssets) ? sp.mediaAssets : [],
-    captureSessions: Array.isArray(sp.captureSessions) ? sp.captureSessions : [],
-    isSheltered: sp.isSheltered !== undefined ? sp.isSheltered : (sp.type === 'indoor' || sp.type === 'windowsill'),
-    sunlightProfile,
-    sunlightZones,
-    layout,
-    measurements,
-    userObservations,
-    coverage,
-    digitalTwin
-  };
-}
+export { normalizeGardenSpace } from '../services/gardenSpaceNormalizer';
 
 export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const toast = useToast();
   const [garden, setGarden] = useState<Garden | null>(null);
   const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<NavigationTab>('home');
+  const [activeTab, setActiveTabState] = useState<NavigationTab>(() => getTabFromHash());
+
+  const setActiveTab = useCallback((tab: NavigationTab) => {
+    setActiveTabState(tab);
+    if (typeof window !== 'undefined' && window.location) {
+      const currentHash = (window.location.hash || '').replace(/^#\/?/, '').trim().toLowerCase();
+      if (currentHash !== tab) {
+        window.location.hash = `#${tab}`;
+      }
+    }
+  }, []);
+
+  // Browser Back/Forward and direct URL synchronization (FIND-UX-01)
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleHashChange = () => {
+      const targetTab = getTabFromHash();
+      setActiveTabState(targetTab);
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, []);
+
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [showTouchGrassModal, setShowTouchGrassModal] = useState(false);
@@ -454,6 +451,14 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   // Milestone 8: Active Capture Session
   const [activeCaptureSessionId, setActiveCaptureSessionId] = useState<string | null>(null);
 
+  // Milestone 13 & 14: Physical Garden Intelligence & Adaptive Care State
+  const [environmentalObservations, setEnvironmentalObservations] = useState<EnvironmentalObservation[]>([]);
+  const [sensorDevices, setSensorDevices] = useState<SensorDevice[]>([]);
+  const [adaptiveCareTasks, setAdaptiveCareTasks] = useState<AdaptiveCareTask[]>([]);
+
+  // Milestone 15: Plant Health Intelligence State
+  const [diagnosisHistory, setDiagnosisHistory] = useState<DiagnosisRecord[]>([]);
+
   // Check initial location permission on mount
   useEffect(() => {
     browserLocationProvider.getPermissionStatus().then((status) => {
@@ -486,6 +491,18 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
           }
           if (parsed.chatMessages && parsed.chatMessages.length > 0) {
             setChatMessages(parsed.chatMessages);
+          }
+          if (parsed.environmentalObservations && Array.isArray(parsed.environmentalObservations)) {
+            setEnvironmentalObservations(parsed.environmentalObservations);
+          }
+          if (parsed.sensorDevices && Array.isArray(parsed.sensorDevices)) {
+            setSensorDevices(parsed.sensorDevices);
+          }
+          if (parsed.adaptiveCareTasks && Array.isArray(parsed.adaptiveCareTasks)) {
+            setAdaptiveCareTasks(parsed.adaptiveCareTasks);
+          }
+          if (parsed.diagnosisHistory && Array.isArray(parsed.diagnosisHistory)) {
+            setDiagnosisHistory(parsed.diagnosisHistory);
           }
         } else if (parsed.profile) {
           // OLD FORMAT DETECTED: Migrate losslessly into Garden with 1 Space
@@ -560,7 +577,7 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, []);
 
-  // 2. Save to localStorage when state changes
+  // 2. Save to localStorage when state changes (Schema Version 6)
   useEffect(() => {
     if (isInitialLoading) return;
     try {
@@ -572,7 +589,11 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         checkedShoppingIds,
         chatMessages,
         storedAIObservations,
-        version: 5
+        environmentalObservations,
+        sensorDevices,
+        adaptiveCareTasks,
+        diagnosisHistory,
+        version: 6
       };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(stateToSave));
     } catch (e) {
@@ -585,6 +606,10 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     taskStatuses,
     checkedShoppingIds,
     chatMessages,
+    environmentalObservations,
+    sensorDevices,
+    adaptiveCareTasks,
+    diagnosisHistory
   ]);
 
   // Active space calculation
@@ -1008,7 +1033,7 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const deleteSpace = useCallback((spaceId: string): boolean => {
     if (!garden) return false;
     if (garden.spaces.length <= 1) {
-      alert('Your garden must have at least one space. You can edit this space instead of deleting it.');
+      toast.warning('Your garden must have at least one space. You can edit this space instead of deleting it.');
       return false;
     }
 
@@ -2411,6 +2436,305 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     );
   }, [allPlantsList]);
 
+  // Milestone 13: Environmental Intelligence Summaries & Insights
+  const environmentalSummaries = useMemo((): EnvironmentalSummary[] => {
+    if (!selectedSpace) return [];
+    const types: import('../types').EnvironmentalMeasurementType[] = [
+      'air_temperature',
+      'relative_humidity',
+      'soil_moisture',
+      'ambient_light',
+      'soil_temperature',
+      'rainfall'
+    ];
+    return types
+      .map((t) => environmentalService.calculateSummary(environmentalObservations, t, selectedSpace.id))
+      .filter((s): s is EnvironmentalSummary => s !== null);
+  }, [environmentalObservations, selectedSpace]);
+
+  const plantEnvironmentalInsights = useMemo((): PlantEnvironmentalInsight[] => {
+    if (!selectedSpace) return [];
+    return environmentalService.generatePlantEnvironmentalInsights(
+      selectedSpace.plants || [],
+      selectedSpace.id,
+      environmentalObservations
+    );
+  }, [selectedSpace, environmentalObservations]);
+
+  const addObservation = useCallback(
+    (candidate: Partial<EnvironmentalObservation>) => {
+      const res = environmentalService.ingestObservation(environmentalObservations, candidate);
+      if (res.success && res.observation) {
+        setEnvironmentalObservations((prev) => [res.observation!, ...prev]);
+      }
+      return res;
+    },
+    [environmentalObservations]
+  );
+
+  const registerSensorDevice = useCallback(
+    (device: Partial<SensorDevice>) => {
+      const res = environmentalService.registerDevice(sensorDevices, device);
+      if (res.success && res.device) {
+        setSensorDevices((prev) => [...prev, res.device!]);
+      }
+      return res;
+    },
+    [sensorDevices]
+  );
+
+  const getSpaceObservations = useCallback(
+    (spaceId: string): EnvironmentalObservation[] => {
+      return environmentalObservations.filter((o) => o.spaceId === spaceId);
+    },
+    [environmentalObservations]
+  );
+
+  // Milestone 14 & 16: Weather-Aware Adaptive Garden Care Planner
+  const careRecommendations = useMemo((): CareRecommendation[] => {
+    if (!selectedSpace) return [];
+    return adaptiveCareEngine.generateRecommendations(
+      selectedSpace,
+      selectedSpace.plants || [],
+      environmentalObservations,
+      new Date(),
+      environmentalContext
+    );
+  }, [selectedSpace, environmentalObservations, environmentalContext]);
+
+  // Synchronize adaptive tasks when recommendations or space change
+  useEffect(() => {
+    if (!selectedSpace || careRecommendations.length === 0) return;
+    setAdaptiveCareTasks((prev) =>
+      adaptiveCareEngine.synchronizeTasksFromRecommendations(prev, careRecommendations, selectedSpace)
+    );
+  }, [selectedSpace, careRecommendations]);
+
+  const completeAdaptiveCareTask = useCallback(
+    (taskId: string, notes?: string) => {
+      setAdaptiveCareTasks((prev) => {
+        const { tasks: updatedTasks, completedTask } = adaptiveCareEngine.completeTask(prev, taskId, notes);
+        if (completedTask && completedTask.plantInstanceId && completedTask.spaceId) {
+          const actionType: import('../types').PlantJournalEntryType =
+            completedTask.category === 'watering'
+              ? 'watered'
+              : completedTask.category === 'pruning'
+              ? 'pruned'
+              : completedTask.category === 'feeding'
+              ? 'fertilized'
+              : 'care_action';
+
+          addJournalEntry({
+            plantInstanceId: completedTask.plantInstanceId,
+            plantId: completedTask.plantId || '',
+            spaceId: completedTask.spaceId,
+            type: actionType,
+            note: notes || completedTask.title,
+            source: 'user'
+          });
+
+          if (completedTask.category === 'watering' && completedTask.plantId) {
+            waterPlant(completedTask.plantId, notes || 'Completed via Care Planner');
+          }
+        }
+        return updatedTasks;
+      });
+    },
+    [addJournalEntry, waterPlant]
+  );
+
+  const snoozeAdaptiveCareTask = useCallback((taskId: string, hours: number = 24) => {
+    setAdaptiveCareTasks((prev) => adaptiveCareEngine.snoozeTask(prev, taskId, hours));
+  }, []);
+
+  const dismissAdaptiveCareTask = useCallback((taskId: string, reason?: string) => {
+    setAdaptiveCareTasks((prev) => adaptiveCareEngine.dismissTask(prev, taskId, reason));
+  }, []);
+
+  const refreshCarePlanner = useCallback(() => {
+    if (!selectedSpace) return;
+    const recs = adaptiveCareEngine.generateRecommendations(
+      selectedSpace,
+      selectedSpace.plants || [],
+      environmentalObservations,
+      new Date(),
+      environmentalContext
+    );
+    setAdaptiveCareTasks((prev) =>
+      adaptiveCareEngine.synchronizeTasksFromRecommendations(prev, recs, selectedSpace)
+    );
+  }, [selectedSpace, environmentalObservations, environmentalContext]);
+
+  // Milestone 15: Plant Health Diagnostic Intelligence
+  const diagnosePlantHealth = useCallback(
+    (params: {
+      plantInstanceId?: string;
+      plantId?: string;
+      symptoms: StructuredSymptomReport;
+      visionResult?: PlantPhotoAnalysisResult | null;
+    }): ContextualDiagnosisReport => {
+      if (!selectedSpace) {
+        throw new Error('No garden space selected for diagnosis');
+      }
+
+      // Match target plant from selected space plants
+      let targetPlant: GardenPlant | Plant | null = null;
+      if (params.plantInstanceId) {
+        targetPlant =
+          (selectedSpace.plants || []).find(
+            (p) => p.instanceId === params.plantInstanceId
+          ) || null;
+      }
+      if (!targetPlant && params.plantId) {
+        targetPlant =
+          (selectedSpace.plants || []).find((p) => p.plantId === params.plantId) ||
+          PLANT_CATALOG.find((p) => p.id === params.plantId) ||
+          null;
+      }
+
+      return plantHealthDiagnosticEngine.diagnose({
+        space: selectedSpace,
+        plant: targetPlant,
+        symptoms: params.symptoms,
+        environmentalObservations,
+        environmentalContext,
+        visionResult: params.visionResult
+      });
+    },
+    [selectedSpace, environmentalObservations, environmentalContext]
+  );
+
+  const saveDiagnosisRecord = useCallback(
+    (report: ContextualDiagnosisReport): DiagnosisRecord => {
+      const newRecord: DiagnosisRecord = {
+        id: `rec-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+        report,
+        createdAt: new Date().toISOString()
+      };
+
+      setDiagnosisHistory((prev) => [newRecord, ...prev]);
+
+      // Automatically log to Garden Journal (Milestone 12 integration)
+      addJournalEntry({
+        plantInstanceId: report.plantInstanceId || 'unassigned',
+        plantId: report.plantId || 'unassigned',
+        spaceId: report.spaceId,
+        type: 'diagnosis_recorded',
+        note: `Plant Doctor Diagnosis: ${report.summary} (Strength: ${report.overallEvidenceStrength})`,
+        source: 'care_engine'
+      });
+
+      return newRecord;
+    },
+    [addJournalEntry]
+  );
+
+  const convertDiagnosisToCareTask = useCallback(
+    (
+      diagnosisRecordId: string,
+      causeId?: string
+    ): { success: boolean; task?: AdaptiveCareTask; message: string } => {
+      const record = diagnosisHistory.find((r) => r.id === diagnosisRecordId);
+      if (!record) {
+        return { success: false, message: 'Diagnosis record not found.' };
+      }
+
+      const report = record.report;
+      const cause = causeId
+        ? report.rankedCauses.find((c) => c.id === causeId) || report.rankedCauses[0]
+        : report.rankedCauses[0];
+
+      if (!cause || !cause.suggestedCareAction) {
+        return { success: false, message: 'No actionable care step is suggested for this cause.' };
+      }
+
+      // Deduplication: prevent duplicate active tasks for the same plant & category
+      const isDuplicate = adaptiveCareTasks.some(
+        (t) =>
+          t.spaceId === report.spaceId &&
+          t.plantInstanceId === report.plantInstanceId &&
+          t.category === cause.suggestedCareAction!.category &&
+          (t.status === 'suggested' || t.status === 'planned' || t.status === 'due' || t.status === 'snoozed')
+      );
+
+      if (isDuplicate) {
+        return {
+          success: false,
+          message: `An active ${cause.suggestedCareAction.category} task already exists for this plant.`
+        };
+      }
+
+      const taskId = `task-diag-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`;
+      const newTask: AdaptiveCareTask = {
+        id: taskId,
+        spaceId: report.spaceId,
+        plantInstanceId: report.plantInstanceId,
+        plantId: report.plantId,
+        plantName: report.plantName,
+        title: cause.suggestedCareAction.title,
+        description: cause.suggestedCareAction.description,
+        category: cause.suggestedCareAction.category,
+        priority: cause.suggestedCareAction.priority,
+        status: 'planned',
+        estimatedMinutes: 10,
+        createdAt: new Date().toISOString(),
+        dueWindow: 'Next 24 Hours',
+        touchGrassPrompt: 'Inspect your plant firsthand and check the soil before making irreversible changes.'
+      };
+
+      setAdaptiveCareTasks((prev) => [newTask, ...prev]);
+
+      // Link task ID to diagnosis record
+      setDiagnosisHistory((prev) =>
+        prev.map((r) => (r.id === diagnosisRecordId ? { ...r, createdTaskId: taskId } : r))
+      );
+
+      return {
+        success: true,
+        task: newTask,
+        message: `Care task "${newTask.title}" added to your Care Planner.`
+      };
+    },
+    [diagnosisHistory, adaptiveCareTasks]
+  );
+
+  const recordDiagnosisFollowUp = useCallback(
+    (
+      recordId: string,
+      status: 'resolved' | 'improved' | 'no_change' | 'declined',
+      notes?: string
+    ) => {
+      let updatedRecord: DiagnosisRecord | undefined;
+
+      setDiagnosisHistory((prev) =>
+        prev.map((r) => {
+          if (r.id === recordId) {
+            updatedRecord = {
+              ...r,
+              followUpStatus: status,
+              followUpNotes: notes
+            };
+            return updatedRecord;
+          }
+          return r;
+        })
+      );
+
+      const target = updatedRecord || diagnosisHistory.find((r) => r.id === recordId);
+      if (target) {
+        addJournalEntry({
+          plantInstanceId: target.report.plantInstanceId || 'unassigned',
+          plantId: target.report.plantId || 'unassigned',
+          spaceId: target.report.spaceId,
+          type: 'follow_up_recorded',
+          note: `Doctor Follow-up: Status marked as "${status}". ${notes ? notes : ''}`,
+          source: 'user'
+        });
+      }
+    },
+    [diagnosisHistory, addJournalEntry]
+  );
+
   return (
     <GardenContext.Provider
       value={{
@@ -2513,7 +2837,25 @@ export const GardenProvider: React.FC<{ children: React.ReactNode }> = ({ childr
         addJournalEntry,
         updatePlantLifecycleStage,
         addPlantHeightMeasurement,
-        getAllGardenJournalEntries
+        getAllGardenJournalEntries,
+        environmentalObservations,
+        sensorDevices,
+        environmentalSummaries,
+        plantEnvironmentalInsights,
+        addObservation,
+        registerSensorDevice,
+        getSpaceObservations,
+        careRecommendations,
+        adaptiveCareTasks,
+        completeAdaptiveCareTask,
+        snoozeAdaptiveCareTask,
+        dismissAdaptiveCareTask,
+        refreshCarePlanner,
+        diagnosisHistory,
+        diagnosePlantHealth,
+        saveDiagnosisRecord,
+        convertDiagnosisToCareTask,
+        recordDiagnosisFollowUp
       }}
     >
       {children}

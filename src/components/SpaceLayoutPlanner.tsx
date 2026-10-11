@@ -564,10 +564,11 @@ export const SpaceLayoutPlanner: React.FC = () => {
             <h3 style={{ margin: '0 0 1rem' }}>+ Add Pot or Container</h3>
             <form onSubmit={handleCreateContainer}>
               <div style={{ marginBottom: '0.85rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem' }}>
+                <label htmlFor="planner-container-name" style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem' }}>
                   Container Name
                 </label>
                 <input
+                  id="planner-container-name"
                   type="text"
                   placeholder="e.g. Tomato Terracotta Pot"
                   value={containerName}
@@ -578,10 +579,11 @@ export const SpaceLayoutPlanner: React.FC = () => {
               </div>
 
               <div style={{ marginBottom: '0.85rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem' }}>
+                <label htmlFor="planner-container-type" style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem' }}>
                   Container Type
                 </label>
                 <select
+                  id="planner-container-type"
                   value={containerType}
                   onChange={(e) => setContainerType(e.target.value as any)}
                   className="input-field"
@@ -662,10 +664,11 @@ export const SpaceLayoutPlanner: React.FC = () => {
             <h3 style={{ margin: '0 0 1rem' }}>+ Add Space Zone</h3>
             <form onSubmit={handleCreateZone}>
               <div style={{ marginBottom: '0.85rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem' }}>
+                <label htmlFor="planner-zone-name" style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem' }}>
                   Zone Name
                 </label>
                 <input
+                  id="planner-zone-name"
                   type="text"
                   placeholder="e.g. South Railing, Wall Shelf"
                   value={zoneName}
@@ -676,10 +679,11 @@ export const SpaceLayoutPlanner: React.FC = () => {
               </div>
 
               <div style={{ marginBottom: '1.25rem' }}>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem' }}>
+                <label htmlFor="planner-zone-type" style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem' }}>
                   Zone Type
                 </label>
                 <select
+                  id="planner-zone-type"
                   value={zoneType}
                   onChange={(e) => setZoneType(e.target.value as any)}
                   className="input-field"

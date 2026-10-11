@@ -75,10 +75,11 @@ export const ShoppingListView: React.FC = () => {
       {/* Multi-space Toggle Bar */}
       {spaces.length > 1 && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', gap: '0.4rem' }}>
+          <div role="group" aria-label="Space scope filter" style={{ display: 'flex', gap: '0.4rem' }}>
             <button
               type="button"
               onClick={() => setFilterMode('all')}
+              aria-pressed={filterMode === 'all'}
               className={`btn btn-sm ${filterMode === 'all' ? 'btn-primary' : 'btn-secondary'}`}
               style={{ borderRadius: 'var(--radius-full)', fontSize: '0.8rem' }}
             >
@@ -88,6 +89,7 @@ export const ShoppingListView: React.FC = () => {
             <button
               type="button"
               onClick={() => setFilterMode('selected')}
+              aria-pressed={filterMode === 'selected'}
               className={`btn btn-sm ${filterMode === 'selected' ? 'btn-primary' : 'btn-secondary'}`}
               style={{ borderRadius: 'var(--radius-full)', fontSize: '0.8rem' }}
             >
@@ -161,6 +163,8 @@ export const ShoppingListView: React.FC = () => {
 
           {/* Filter Pills */}
           <div
+            role="group"
+            aria-label="Shopping item categories"
             style={{
               display: 'flex',
               gap: '0.5rem',
@@ -172,7 +176,9 @@ export const ShoppingListView: React.FC = () => {
             {filterTabs.map((tab) => (
               <button
                 key={tab.id}
+                type="button"
                 onClick={() => setSelectedCategory(tab.id)}
+                aria-pressed={selectedCategory === tab.id}
                 className={`btn btn-sm ${selectedCategory === tab.id ? 'btn-primary' : 'btn-secondary'}`}
                 style={{ borderRadius: 'var(--radius-full)', whiteSpace: 'nowrap' }}
               >
@@ -186,7 +192,16 @@ export const ShoppingListView: React.FC = () => {
             {filteredItems.map((item) => (
               <div
                 key={item.id}
+                role="checkbox"
+                aria-checked={item.checked}
+                tabIndex={0}
                 onClick={() => toggleShoppingItem(item.id)}
+                onKeyDown={(e) => {
+                  if (e.key === ' ' || e.key === 'Enter') {
+                    e.preventDefault();
+                    toggleShoppingItem(item.id);
+                  }
+                }}
                 className="card"
                 style={{
                   padding: '1.15rem 1.25rem',

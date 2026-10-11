@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useGarden } from '../context/GardenContext';
+import { useToast } from '../context/ToastContext';
 import { SpaceSelector } from './SpaceSelector';
 import {
   CheckCircle2,
@@ -31,11 +32,15 @@ export const TodaysGardenView: React.FC = () => {
     waterPlant,
     checkSoil,
     environmentalAdvice,
+    environmentalContext,
+    careRecommendations,
     notificationStatus,
     enableNotifications,
     setShowTouchGrassModal,
     setActiveTab
   } = useGarden();
+
+  const { success, info } = useToast();
 
   const [filterMode, setFilterMode] = useState<'selected' | 'all'>('all');
   const [activeSoilCheckTaskId, setActiveSoilCheckTaskId] = useState<string | null>(null);
@@ -75,7 +80,11 @@ export const TodaysGardenView: React.FC = () => {
     e.stopPropagation();
     if (!plantId) return;
     const res = waterPlant(plantId);
-    alert(res.message);
+    if (res.success) {
+      success(res.message);
+    } else {
+      info(res.message);
+    }
   };
 
   // Quick Action: Soil Check
@@ -170,10 +179,11 @@ export const TodaysGardenView: React.FC = () => {
       {/* Multi-Space Filter Bar */}
       {spaces.length > 1 && (
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.75rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
-          <div style={{ display: 'flex', gap: '0.4rem' }}>
+          <div role="group" aria-label="Task scope filter" style={{ display: 'flex', gap: '0.4rem' }}>
             <button
               type="button"
               onClick={() => setFilterMode('all')}
+              aria-pressed={filterMode === 'all'}
               className={`btn btn-sm ${filterMode === 'all' ? 'btn-primary' : 'btn-secondary'}`}
               style={{ borderRadius: 'var(--radius-full)', fontSize: '0.8rem' }}
             >
@@ -183,6 +193,7 @@ export const TodaysGardenView: React.FC = () => {
             <button
               type="button"
               onClick={() => setFilterMode('selected')}
+              aria-pressed={filterMode === 'selected'}
               className={`btn btn-sm ${filterMode === 'selected' ? 'btn-primary' : 'btn-secondary'}`}
               style={{ borderRadius: 'var(--radius-full)', fontSize: '0.8rem' }}
             >
@@ -258,6 +269,117 @@ export const TodaysGardenView: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Milestone 16: Severe Weather Alert Banner */}
+      {environmentalContext?.snapshot?.severeWeatherAlert && (
+        <div
+          className="card"
+          style={{
+            backgroundColor: '#FEF2F2',
+            border: '1.5px solid #F87171',
+            padding: '1rem 1.25rem',
+            marginBottom: '1.25rem',
+            display: 'flex',
+            alignItems: 'flex-start',
+            gap: '0.85rem'
+          }}
+        >
+          <AlertCircle size={22} color="#DC2626" style={{ flexShrink: 0, marginTop: '2px' }} />
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.2rem' }}>
+              <strong style={{ color: '#991B1B', fontSize: '0.95rem' }}>
+                {environmentalContext.snapshot.severeWeatherAlert.headline}
+              </strong>
+              <span className="badge" style={{ backgroundColor: '#FEE2E2', color: '#991B1B', fontSize: '0.675rem' }}>
+                {environmentalContext.snapshot.severeWeatherAlert.severity.toUpperCase()}
+              </span>
+            </div>
+            <p style={{ margin: '0 0 0.35rem 0', color: '#7F1D1D', fontSize: '0.85rem', lineHeight: 1.45 }}>
+              {environmentalContext.snapshot.severeWeatherAlert.description}
+            </p>
+            <div style={{ fontSize: '0.8rem', color: '#991B1B', fontWeight: 500 }}>
+              💡 {environmentalContext.snapshot.severeWeatherAlert.instructions}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Milestone 16: Weather-Aware Plant Recommendations */}
+      {careRecommendations.filter((r) => r.weatherReason || r.isPostponedOrSuppressed || r.weatherAlert).length > 0 && (
+        <div
+          className="card"
+          style={{
+            backgroundColor: '#F0F9FF',
+            border: '1.5px solid #BAE6FD',
+            padding: '1.2rem',
+            marginBottom: '1.25rem'
+          }}
+        >
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginBottom: '0.65rem' }}>
+            <CloudSun size={18} color="#0284C7" />
+            <span style={{ fontWeight: 700, fontSize: '0.95rem', color: '#0369A1' }}>
+              Weather-Aware Garden Guidance
+            </span>
+            <span className="badge" style={{ backgroundColor: '#E0F2FE', color: '#0369A1', fontSize: '0.7rem' }}>
+              Real-time
+            </span>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+            {careRecommendations
+              .filter((r) => r.weatherReason || r.isPostponedOrSuppressed || r.weatherAlert)
+              .map((rec) => {
+                const targetPlant = selectedSpace?.plants?.find(
+                  (p) => p.instanceId === rec.targetPlantInstanceId || p.plantId === rec.plantId
+                );
+
+                return (
+                  <div
+                    key={rec.id}
+                    style={{
+                      backgroundColor: '#FFFFFF',
+                      borderRadius: 'var(--radius-sm)',
+                      padding: '0.75rem 0.9rem',
+                      border: '1px solid #E0F2FE'
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.3rem' }}>
+                      <span style={{ fontWeight: 600, fontSize: '0.9rem', color: '#0F172A' }}>
+                        {rec.actionTitle}
+                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        {targetPlant && (
+                          <span className="badge badge-green" style={{ fontSize: '0.7rem' }}>
+                            {targetPlant.plant.name}
+                          </span>
+                        )}
+                        <span className="badge badge-neutral" style={{ fontSize: '0.7rem' }}>
+                          {rec.spaceExposure === 'indoor' ? '🏠 Indoor' : rec.spaceExposure === 'sheltered' ? '☂️ Sheltered' : '☀️ Exposed'}
+                        </span>
+                        {rec.isPostponedOrSuppressed && (
+                          <span className="badge" style={{ backgroundColor: '#FEF3C7', color: '#92400E', fontSize: '0.7rem' }}>
+                            Postponed
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <p style={{ margin: '0 0 0.35rem 0', fontSize: '0.825rem', color: '#475569', lineHeight: 1.45 }}>
+                      {rec.actionInstructions}
+                    </p>
+                    <div style={{ fontSize: '0.775rem', color: '#0284C7', fontStyle: 'italic' }}>
+                      Reason: {rec.reason}
+                    </div>
+                    {rec.reevaluateAt && (
+                      <div style={{ fontSize: '0.725rem', color: '#64748B', marginTop: '0.2rem' }}>
+                        ⏱️ Re-evaluate: {new Date(rec.reevaluateAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+          </div>
+        </div>
+      )}
 
       {/* Empty State */}
       {displayedTasks.length === 0 ? (

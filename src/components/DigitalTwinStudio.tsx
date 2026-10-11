@@ -601,8 +601,9 @@ export const DigitalTwinStudio: React.FC = () => {
                 </div>
 
                 <div style={{ marginBottom: '0.75rem' }}>
-                  <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '0.25rem' }}>Container Name</label>
+                  <label htmlFor="dt-container-name" style={{ fontSize: '0.8rem', display: 'block', marginBottom: '0.25rem' }}>Container Name</label>
                   <input
+                    id="dt-container-name"
                     type="text"
                     className="input input-sm"
                     value={newContainerName}
@@ -615,8 +616,9 @@ export const DigitalTwinStudio: React.FC = () => {
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem', marginBottom: '0.75rem' }}>
                   <div>
-                    <label style={{ fontSize: '0.8rem', display: 'block', marginBottom: '0.25rem' }}>Type</label>
+                    <label htmlFor="dt-container-type" style={{ fontSize: '0.8rem', display: 'block', marginBottom: '0.25rem' }}>Type</label>
                     <select
+                      id="dt-container-type"
                       className="input input-sm"
                       value={newContainerType}
                       onChange={(e) => setNewContainerType(e.target.value as any)}

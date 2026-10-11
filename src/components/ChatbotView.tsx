@@ -258,6 +258,8 @@ export const ChatbotView: React.FC = () => {
         }}
       >
         <input
+          id="chatbot-message-input"
+          aria-label="Ask a garden question"
           type="text"
           className="form-input"
           style={{ border: 'none', boxShadow: 'none', padding: '0.6rem 0.8rem' }}
@@ -268,6 +270,7 @@ export const ChatbotView: React.FC = () => {
         />
         <button
           type="submit"
+          aria-label="Send message"
           className="btn btn-primary"
           style={{ padding: '0.6rem 1.1rem', borderRadius: 'var(--radius-md)' }}
           disabled={!input.trim() || isSending}

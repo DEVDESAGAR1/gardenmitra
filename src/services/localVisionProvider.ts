@@ -258,6 +258,138 @@ export class LocalVisionProvider implements VisionProvider {
         ],
         disclaimer: 'This photo alone isn\'t enough to determine the cause. Light intensity is the most common reason for lack of blooms.'
       },
+      curling: {
+        symptomTitle: 'Curling or Cupping Leaves',
+        possibleCauses: [
+          'Heat stress or intense transpiration loss',
+          'Sap-sucking pests (aphids, thrips, or mites) hiding on leaf undersides',
+          'Underwatering or irregular watering spikes',
+          'Herbicide drift or viral infection (rare)'
+        ],
+        investigationSteps: [
+          'Check whether leaves curl upwards (cupping from heat/light) or downwards (pests/overwatering)',
+          'Inspect leaf undersides with a magnifying lens or bright torch for tiny pests'
+        ],
+        immediateSafeActions: [
+          'Provide temporary afternoon shade if temperatures exceed 35°C',
+          'Inspect undersides and wipe with neem solution if insects are spotted',
+          'Check soil moisture 1 inch down and water deeply if dry'
+        ],
+        disclaimer: 'Curling is a defensive response by the plant to conserve moisture. Check pests and light exposure.'
+      },
+      drooping: {
+        symptomTitle: 'Drooping or Limp Stems',
+        possibleCauses: [
+          'Underwatering / desiccation',
+          'Overwatering / root suffocation causing inability to draw water',
+          'Transplant shock or root disturbance',
+          'Midday heat temporary wilt'
+        ],
+        investigationSteps: [
+          'Probe the root ball: is the soil dry and pulling from pot edge, or heavy and saturated?',
+          'Observe if plant perks up in cooler evening shade'
+        ],
+        immediateSafeActions: [
+          'If soil is bone-dry, bottom-water or gently soak until drainage flows',
+          'If soil is soggy, hold off watering and improve airflow around base',
+          'Keep out of direct harsh noon sun until turgor pressure recovers'
+        ],
+        disclaimer: 'Drooping can result from both extreme dry soil and waterlogged roots. Always touch the soil first.'
+      },
+      leaf_drop: {
+        symptomTitle: 'Sudden Leaf Drop / Defoliation',
+        possibleCauses: [
+          'Sudden environmental shock (drastic light, temperature, or location shift)',
+          'Severe drought followed by heavy flooding',
+          'Overwatering causing root loss',
+          'Drafts from AC or dry hot winds'
+        ],
+        investigationSteps: [
+          'Did you recently relocate the pot or experience an abrupt weather shift?',
+          'Are dropped leaves green, yellow, or shriveled?'
+        ],
+        immediateSafeActions: [
+          'Keep the pot in a stable, temperate spot with filtered light',
+          'Maintain steady, consistent soil moisture without waterlogging',
+          'Allow 7–14 days for new nodes to emerge; avoid heavy fertilizing'
+        ],
+        disclaimer: 'Leaf drop is frequently shock-induced. Give the plant a stable microclimate to recover.'
+      },
+      stunted_growth: {
+        symptomTitle: 'Stunted or Arrested Growth',
+        possibleCauses: [
+          'Root-bound container with no room to expand',
+          'Soil compaction or nutrient exhaustion',
+          'Insufficient light below plant threshold',
+          'Cold soil temperatures slowing root metabolism'
+        ],
+        investigationSteps: [
+          'Check container drainage holes for congested roots',
+          'Review daily direct sunlight duration against plant requirements'
+        ],
+        immediateSafeActions: [
+          'Top-dress container with 1–2 inches of rich compost or vermicompost',
+          'Relocate container to maximize sunlight exposure',
+          'Consider repotting to a 20-30% larger container if roots are bound'
+        ],
+        disclaimer: 'Growth speed depends heavily on ambient season, container volume, and soil aeration.'
+      },
+      root_concerns: {
+        symptomTitle: 'Root System & Base Concerns',
+        possibleCauses: [
+          'Poor drainage leading to root hypoxia / rot',
+          'Root binding / girdling around pot periphery',
+          'Soil compaction suffocating root respiration',
+          'Fungal pathogens in stagnant media'
+        ],
+        investigationSteps: [
+          'Check base drainage holes for foul odors or dark, mushy root tips',
+          'Check whether water pools on the soil surface for minutes before draining'
+        ],
+        immediateSafeActions: [
+          'Ensure drainage holes are completely unobstructed',
+          'Allow root zone to aerate by pausing surface watering until topsoil is dry',
+          'Add perlite or coarse river sand in future potting mixes for drainage'
+        ],
+        disclaimer: 'Root health dictates overall plant vitality. Inspect soil texture and drainage flow.'
+      },
+      pests: {
+        symptomTitle: 'Pests & Parasitic Organisms',
+        possibleCauses: [
+          'Sap-feeding aphids, whiteflies, thrips, or mealybugs',
+          'Spider mites thriving in hot, dry microclimates',
+          'Caterpillars or leaf miners chewing foliage'
+        ],
+        investigationSteps: [
+          'Inspect leaf undersides, shoot tips, and leaf axils with bright lighting',
+          'Check for sticky residue (honeydew) or fine webbing between stems'
+        ],
+        immediateSafeActions: [
+          'Isolate affected plant immediately to safeguard nearby greenery',
+          'Physically wash off pests with a gentle water spray',
+          'Apply organic neem oil spray (5ml/L with mild soap emulsifier) in late evening'
+        ],
+        disclaimer: 'Non-chemical physical removal and botanical neem sprays are safe and effective first steps.'
+      },
+      abnormal_flowering_fruiting: {
+        symptomTitle: 'Flower Drop or Abnormal Fruiting',
+        possibleCauses: [
+          'Extreme temperatures (>35°C or <12°C) causing blossom drop',
+          'Incomplete pollination due to lack of pollinators or gentle breeze',
+          'Excess nitrogen suppressing bloom set',
+          'Irregular watering causing blossom-end issues'
+        ],
+        investigationSteps: [
+          'Check ambient temperatures during bloom window',
+          'Observe if flowers open and drop unfertilized'
+        ],
+        immediateSafeActions: [
+          'Maintain consistent soil moisture—avoid cyclical drought and flooding',
+          'Gently vibrate or tap flower clusters around 10 AM to assist pollination',
+          'Switch to a potassium-rich organic feed (e.g., banana peel bio-enzyme or compost)'
+        ],
+        disclaimer: 'Flowering and fruit set are sensitive to thermal extremes and moisture fluctuations.'
+      },
       other: {
         symptomTitle: 'General Plant Wellness Check',
         possibleCauses: [

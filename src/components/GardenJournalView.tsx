@@ -641,10 +641,11 @@ export const GardenJournalView: React.FC = () => {
             <form onSubmit={handleSubmitEntry} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
               {/* Plant Selector */}
               <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                <label htmlFor="journal-target-plant" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
                   Target Plant:
                 </label>
                 <select
+                  id="journal-target-plant"
                   value={selectedPlantInstanceId}
                   onChange={(e) => setSelectedPlantInstanceId(e.target.value)}
                   required
@@ -660,10 +661,11 @@ export const GardenJournalView: React.FC = () => {
 
               {/* Action Type */}
               <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                <label htmlFor="journal-entry-type" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
                   Entry Type:
                 </label>
                 <select
+                  id="journal-entry-type"
                   value={modalType}
                   onChange={(e) => setModalType(e.target.value as any)}
                   style={{ width: '100%', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}
@@ -680,10 +682,11 @@ export const GardenJournalView: React.FC = () => {
               {/* Height Field */}
               {modalType === 'height_measured' && (
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                  <label htmlFor="journal-entry-height" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
                     Height in Centimetres (cm):
                   </label>
                   <input
+                    id="journal-entry-height"
                     type="number"
                     step="0.5"
                     min="1"
@@ -700,10 +703,11 @@ export const GardenJournalView: React.FC = () => {
               {/* Stage Field */}
               {modalType === 'stage_changed' && (
                 <div>
-                  <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                  <label htmlFor="journal-entry-stage" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
                     New Lifecycle Stage:
                   </label>
                   <select
+                    id="journal-entry-stage"
                     value={entryStage}
                     onChange={(e) => setEntryStage(e.target.value as any)}
                     style={{ width: '100%', padding: '0.55rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }}
@@ -722,10 +726,11 @@ export const GardenJournalView: React.FC = () => {
 
               {/* Notes Field */}
               <div>
-                <label style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
+                <label htmlFor="journal-entry-note" style={{ display: 'block', fontSize: '0.85rem', fontWeight: 600, marginBottom: '0.35rem' }}>
                   Observation Notes (Optional):
                 </label>
                 <textarea
+                  id="journal-entry-note"
                   rows={3}
                   placeholder="e.g. Healthy new side shoots visible. Soil was damp."
                   value={entryNote}

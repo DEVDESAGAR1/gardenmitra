@@ -1,9 +1,15 @@
 import React from 'react';
 import { useGarden } from '../context/GardenContext';
+import { useFocusTrap } from '../hooks/useFocusTrap';
 import { X, Sun, Wind, Eye, Sparkles, Sprout } from 'lucide-react';
 
 export const TouchGrassModal: React.FC = () => {
   const { showTouchGrassModal, setShowTouchGrassModal, profile } = useGarden();
+
+  const modalRef = useFocusTrap<HTMLDivElement>({
+    isOpen: showTouchGrassModal,
+    onClose: () => setShowTouchGrassModal(false)
+  });
 
   if (!showTouchGrassModal) return null;
 
@@ -11,12 +17,14 @@ export const TouchGrassModal: React.FC = () => {
     <div
       className="modal-overlay"
       onClick={() => setShowTouchGrassModal(false)}
-      role="dialog"
-      aria-modal="true"
     >
       <div
+        ref={modalRef}
         className="modal-card"
         onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="touch-grass-title"
         style={{ textAlign: 'center', maxWidth: 520, padding: '2.5rem 2rem' }}
       >
         <button
@@ -44,7 +52,7 @@ export const TouchGrassModal: React.FC = () => {
           <Sun size={32} />
         </div>
 
-        <h2 style={{ fontSize: '1.75rem', color: 'var(--color-primary-dark)', marginBottom: '0.5rem' }}>
+        <h2 id="touch-grass-title" style={{ fontSize: '1.75rem', color: 'var(--color-primary-dark)', marginBottom: '0.5rem' }}>
           Time to Touch Grass 🌿
         </h2>
 
